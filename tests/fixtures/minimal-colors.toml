@@ -1,0 +1,5 @@
+# Deliberately incomplete and using alternative hex forms.
+background = "#FAFAFA"
+foreground = "#101010"
+accent = "0x112233"
+

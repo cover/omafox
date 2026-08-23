@@ -1,0 +1,7 @@
+{
+  "name": "org.omarchy.omafox",
+  "description": "Delivers Omarchy theme changes to the Omafox extension",
+  "path": "/usr/lib/omafox/omafox-native-host",
+  "type": "stdio",
+  "allowed_extensions": ["@omafox"]
+}

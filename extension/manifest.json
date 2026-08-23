@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Omafox",
+  "version": "1.0.0",
+  "description": "Keeps Firefox in sync with the current Omarchy theme.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "@omafox",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "theme"
+  ],
+  "background": {
+    "scripts": [
+      "theme.js",
+      "background.js"
+    ]
+  },
+  "action": {
+    "default_title": "Omafox",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/omafox.svg",
+      "32": "icons/omafox.svg",
+      "48": "icons/omafox.svg",
+      "96": "icons/omafox.svg"
+    }
+  },
+  "icons": {
+    "48": "icons/omafox.svg",
+    "96": "icons/omafox.svg"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

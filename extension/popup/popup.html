@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Omafox</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <header>
+      <img src="../icons/omafox.svg" alt="">
+      <div>
+        <h1>Omafox</h1>
+        <p id="state">Checking theme…</p>
+      </div>
+    </header>
+
+    <dl id="details" hidden>
+      <div>
+        <dt>Omarchy theme</dt>
+        <dd id="theme-name"></dd>
+      </div>
+      <div>
+        <dt>Palette</dt>
+        <dd id="palette-mode"></dd>
+      </div>
+      <div>
+        <dt>Last sync</dt>
+        <dd id="last-sync"></dd>
+      </div>
+    </dl>
+
+    <p id="error" class="error" hidden></p>
+
+    <div class="actions">
+      <button id="reapply" type="button" disabled>Reapply</button>
+      <button id="clear" type="button" class="secondary" disabled>Clear</button>
+    </div>
+
+    <script src="../theme.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

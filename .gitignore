@@ -1,0 +1,7 @@
+extension/dist/
+node_modules/
+/aur/
+/build/
+/pkg/
+/src/
+/*.pkg.tar.*

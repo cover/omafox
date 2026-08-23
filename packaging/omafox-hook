@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Omarchy copies hooks into the user's configuration. Keep this wrapper stable
+# so package upgrades use the current pacman-managed command automatically.
+if [[ -x /usr/bin/omafox ]]; then
+  exec /usr/bin/omafox sync
+fi
+
+exit 0

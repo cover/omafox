@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <defs>
+    <linearGradient id="firefox" x1="0" y1="0" x2="3000" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0060df"/>
+      <stop offset=".25" stop-color="#7542e5"/>
+      <stop offset=".5" stop-color="#ff006b"/>
+      <stop offset=".76" stop-color="#ff4f00"/>
+      <stop offset="1" stop-color="#ffd567"/>
+    </linearGradient>
+  </defs>
+  <path
+    fill="url(#firefox)"
+    transform="translate(0 300) scale(.1 -.1)"
+    d="M0 1500l0-1500 800 0 800 0 0 200 0 200 500 0 500 0 0 1100 0 1100-200 0-200 0 0-100 0-100 100 0 100 0 0-900 0-900-900 0-900 0 0 900 0 900 500 0 500 0 0 200 0 200 600 0 600 0 0-1300 0-1300-500 0-500 0 0-100 0-100 600 0 600 0 0 1500 0 1500-1500 0-1500 0 0-1500zm1400 1200l0-100-500 0-500 0 0-500 0-500-100 0-100 0 0 600 0 600 600 0 600 0 0-100zm-1000-1800l0-500 500 0 500 0 0-100 0-100-600 0-600 0 0 600 0 600 100 0 100 0 0-500z"/>
+</svg>

@@ -1,0 +1,20 @@
+#!/bin/bash
+
+set -euo pipefail
+
+case ${1:-} in
+  version)
+    echo "4.0.0-1"
+    ;;
+  hook)
+    [[ ${2:-} == install && ${3:-} == theme-set ]]
+    hook_dir="$HOME/.config/omarchy/hooks/theme-set.d"
+    mkdir -p "$hook_dir"
+    cp "$4" "$hook_dir/$(basename "$4")"
+    chmod 755 "$hook_dir/$(basename "$4")"
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+
