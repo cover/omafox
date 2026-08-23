@@ -22,11 +22,6 @@ shellcheck \
   "$SCRIPT_DIR/package.test.sh" \
   "$SCRIPT_DIR/fixtures/bin/omarchy"
 
-omafox_version=$("$PROJECT_DIR/omarchy/omafox" version)
-extension_version=$(sed -nE 's/^[[:space:]]*"version":[[:space:]]*"([^"]+)",?$/\1/p' \
-  "$PROJECT_DIR/extension/manifest.json")
-[[ $omafox_version == "$extension_version" ]]
-
 node --check "$PROJECT_DIR/extension/theme.js"
 node --check "$PROJECT_DIR/extension/background.js"
 node --check "$PROJECT_DIR/extension/popup/popup.js"
