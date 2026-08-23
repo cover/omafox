@@ -36,6 +36,38 @@
 
   const COLOR_KEYS = Object.freeze(PALETTE_KEYS.filter((key) => key !== "mode"));
   const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+  const MIN_TEXT_CONTRAST = 4.5;
+
+  function relativeLuminance(color) {
+    const channels = [1, 3, 5].map((offset) => {
+      const channel = Number.parseInt(color.slice(offset, offset + 2), 16) / 255;
+      return channel <= 0.04045
+        ? channel / 12.92
+        : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+
+    return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+  }
+
+  function contrastRatio(first, second) {
+    const firstLuminance = relativeLuminance(first);
+    const secondLuminance = relativeLuminance(second);
+    const lighter = Math.max(firstLuminance, secondLuminance);
+    const darker = Math.min(firstLuminance, secondLuminance);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  function readableTextColor(background, preferred, alternatives) {
+    for (const candidate of [preferred, ...alternatives]) {
+      if (contrastRatio(background, candidate) >= MIN_TEXT_CONTRAST) {
+        return candidate;
+      }
+    }
+
+    return contrastRatio(background, "#000000") >= contrastRatio(background, "#FFFFFF")
+      ? "#000000"
+      : "#FFFFFF";
+  }
 
   function validatePalette(palette) {
     if (!palette || typeof palette !== "object" || Array.isArray(palette)) {
@@ -99,6 +131,15 @@
     }
 
     const color = validatePalette(record.palette);
+    const highlightText = readableTextColor(color.selection, color.bright_foreground, [
+      color.foreground,
+      color.light_foreground,
+      color.dark_foreground,
+      color.background,
+      color.dark_background,
+      color.darker_background,
+      color.lighter_background
+    ]);
     return {
       colors: {
         frame: color.background,
@@ -117,7 +158,7 @@
         toolbar_field_border: color.muted,
         toolbar_field_border_focus: color.bright_blue,
         toolbar_field_highlight: color.selection,
-        toolbar_field_highlight_text: color.bright_foreground,
+        toolbar_field_highlight_text: highlightText,
         button_background_hover: color.lighter_background,
         button_background_active: color.selection,
         icons: color.light_foreground,
@@ -127,12 +168,12 @@
         popup_text: color.foreground,
         popup_border: color.muted,
         popup_highlight: color.selection,
-        popup_highlight_text: color.bright_foreground,
+        popup_highlight_text: highlightText,
         sidebar: color.dark_background,
         sidebar_text: color.foreground,
         sidebar_border: color.muted,
         sidebar_highlight: color.selection,
-        sidebar_highlight_text: color.bright_foreground,
+        sidebar_highlight_text: highlightText,
         ntp_background: color.background,
         ntp_card_background: color.lighter_background,
         ntp_text: color.foreground,
