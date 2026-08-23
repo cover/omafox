@@ -36,6 +36,7 @@
 
   const COLOR_KEYS = Object.freeze(PALETTE_KEYS.filter((key) => key !== "mode"));
   const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+  const MIN_ICON_CONTRAST = 3;
   const MIN_TEXT_CONTRAST = 4.5;
 
   function relativeLuminance(color) {
@@ -67,6 +68,25 @@
     return contrastRatio(background, "#000000") >= contrastRatio(background, "#FFFFFF")
       ? "#000000"
       : "#FFFFFF";
+  }
+
+  function minimumContrast(background, foregrounds) {
+    return Math.min(...foregrounds.map((foreground) => contrastRatio(background, foreground)));
+  }
+
+  function readableBackgroundColor(foregrounds, preferred, alternatives) {
+    const candidates = [preferred, ...alternatives];
+    for (const candidate of candidates) {
+      if (minimumContrast(candidate, foregrounds) >= MIN_ICON_CONTRAST) {
+        return candidate;
+      }
+    }
+
+    return [...candidates, "#000000", "#FFFFFF"].reduce((best, candidate) => (
+      minimumContrast(candidate, foregrounds) > minimumContrast(best, foregrounds)
+        ? candidate
+        : best
+    ));
   }
 
   function validatePalette(palette) {
@@ -140,6 +160,56 @@
       color.darker_background,
       color.lighter_background
     ]);
+    const iconColors = [color.light_foreground, color.bright_yellow];
+    const buttonBackgroundHover = readableBackgroundColor(
+      iconColors,
+      color.lighter_background,
+      [
+        color.accent,
+        color.selection,
+        color.muted,
+        color.dark_background,
+        color.background,
+        color.darker_background
+      ]
+    );
+    const buttonBackgroundActive = readableBackgroundColor(
+      iconColors,
+      color.selection,
+      [
+        color.accent,
+        color.muted,
+        color.lighter_background,
+        color.dark_background,
+        color.background,
+        color.darker_background
+      ]
+    );
+    const selectedRowBackground = readableBackgroundColor(
+      [color.foreground],
+      color.selection,
+      [
+        color.accent,
+        color.muted,
+        color.lighter_background,
+        color.dark_background,
+        color.background,
+        color.darker_background
+      ]
+    );
+    const selectedRowText = readableTextColor(
+      selectedRowBackground,
+      color.bright_foreground,
+      [
+        color.foreground,
+        color.light_foreground,
+        color.dark_foreground,
+        color.background,
+        color.dark_background,
+        color.darker_background,
+        color.lighter_background
+      ]
+    );
     return {
       colors: {
         frame: color.background,
@@ -159,21 +229,21 @@
         toolbar_field_border_focus: color.bright_blue,
         toolbar_field_highlight: color.selection,
         toolbar_field_highlight_text: highlightText,
-        button_background_hover: color.lighter_background,
-        button_background_active: color.selection,
+        button_background_hover: buttonBackgroundHover,
+        button_background_active: buttonBackgroundActive,
         icons: color.light_foreground,
         icons_attention: color.bright_yellow,
         bookmark_text: color.foreground,
         popup: color.dark_background,
         popup_text: color.foreground,
         popup_border: color.muted,
-        popup_highlight: color.selection,
-        popup_highlight_text: highlightText,
+        popup_highlight: selectedRowBackground,
+        popup_highlight_text: selectedRowText,
         sidebar: color.dark_background,
         sidebar_text: color.foreground,
         sidebar_border: color.muted,
-        sidebar_highlight: color.selection,
-        sidebar_highlight_text: highlightText,
+        sidebar_highlight: selectedRowBackground,
+        sidebar_highlight_text: selectedRowText,
         ntp_background: color.background,
         ntp_card_background: color.lighter_background,
         ntp_text: color.foreground,
