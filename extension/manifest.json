@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Omafox",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Keeps Firefox in sync with the current Omarchy theme.",
   "browser_specific_settings": {
     "gecko": {
