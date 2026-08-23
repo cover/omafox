@@ -58,6 +58,9 @@ assert.equal(firefoxTheme.colors.frame, palette.background);
 assert.equal(firefoxTheme.colors.tab_line, palette.accent);
 assert.equal(firefoxTheme.colors.toolbar_field_highlight, palette.selection);
 assert.equal(firefoxTheme.colors.toolbar_field_highlight_text, palette.bright_foreground);
+assert.equal(firefoxTheme.colors.button_background_active, palette.selection);
+assert.equal(firefoxTheme.colors.popup_highlight, palette.selection);
+assert.equal(firefoxTheme.colors.sidebar_highlight, palette.selection);
 assert.equal(firefoxTheme.colors.toolbar_bottom_separator, palette.brown);
 assert.equal(firefoxTheme.properties.color_scheme, "dark");
 
@@ -70,8 +73,23 @@ const lowContrastHighlightTheme = toFirefoxTheme({
   }
 });
 assert.equal(lowContrastHighlightTheme.colors.toolbar_field_highlight_text, palette.background);
-assert.equal(lowContrastHighlightTheme.colors.popup_highlight_text, palette.background);
-assert.equal(lowContrastHighlightTheme.colors.sidebar_highlight_text, palette.background);
+
+const lowContrastIconTheme = toFirefoxTheme({
+  ...record,
+  palette: {
+    ...palette,
+    accent: "#AE6378",
+    selection: "#FDFAFA",
+    foreground: "#FDFAFA",
+    light_foreground: "#FDFBFB",
+    bright_foreground: "#FEFBFB",
+    bright_yellow: "#FFD384"
+  }
+});
+assert.equal(lowContrastIconTheme.colors.icons, "#FDFBFB");
+assert.equal(lowContrastIconTheme.colors.button_background_active, "#AE6378");
+assert.equal(lowContrastIconTheme.colors.popup_highlight, "#AE6378");
+assert.equal(lowContrastIconTheme.colors.sidebar_highlight, "#AE6378");
 
 const monochromePalette = Object.fromEntries(
   PALETTE_KEYS.map((key) => [key, key === "mode" ? "dark" : "#777777"])
