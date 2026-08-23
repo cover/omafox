@@ -57,8 +57,27 @@ const firefoxTheme = toFirefoxTheme(record);
 assert.equal(firefoxTheme.colors.frame, palette.background);
 assert.equal(firefoxTheme.colors.tab_line, palette.accent);
 assert.equal(firefoxTheme.colors.toolbar_field_highlight, palette.selection);
+assert.equal(firefoxTheme.colors.toolbar_field_highlight_text, palette.bright_foreground);
 assert.equal(firefoxTheme.colors.toolbar_bottom_separator, palette.brown);
 assert.equal(firefoxTheme.properties.color_scheme, "dark");
+
+const lowContrastHighlightTheme = toFirefoxTheme({
+  ...record,
+  palette: {
+    ...palette,
+    selection: "#FDFAFA",
+    bright_foreground: "#FEFBFB"
+  }
+});
+assert.equal(lowContrastHighlightTheme.colors.toolbar_field_highlight_text, palette.background);
+assert.equal(lowContrastHighlightTheme.colors.popup_highlight_text, palette.background);
+assert.equal(lowContrastHighlightTheme.colors.sidebar_highlight_text, palette.background);
+
+const monochromePalette = Object.fromEntries(
+  PALETTE_KEYS.map((key) => [key, key === "mode" ? "dark" : "#777777"])
+);
+const fallbackHighlightTheme = toFirefoxTheme({ ...record, palette: monochromePalette });
+assert.equal(fallbackHighlightTheme.colors.toolbar_field_highlight_text, "#000000");
 
 assert.throws(
   () => parseThemeMessage({
