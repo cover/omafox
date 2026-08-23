@@ -1,174 +1,135 @@
 # Omafox
 
-Omafox keeps Firefox's browser chrome in sync with the current Omarchy
-palette. It consists of:
+Omafox keeps Firefox's interface in sync with your current
+[Omarchy](https://omarchy.org/) theme.
 
-- `extension/`, the separately distributed Firefox extension.
-- `omarchy/omafox`, the user-facing command and Omarchy hook target.
-- `omarchy/omafox-native-host.c`, the small Firefox native messaging host.
-- a separately maintained [AUR package](https://aur.archlinux.org/packages/omafox)
-  that installs the command and compiled native host system-wide.
+## Features
 
-Omafox was inspired by [omazed](https://github.com/APS6/omazed), which provides
-live Omarchy theme switching for the Zed editor.
-
-There is no persistent daemon and no web service. When Omarchy changes theme,
-the hook reads Omarchy's `colors.toml` and atomically stores a JSON protocol
-message in `~/.local/state/omafox/theme.json`. While Firefox is running, the
-native host uses Linux `inotify` to sleep until that file changes and then
-forwards the message through Firefox native messaging.
-
-The extension applies the palette and retains it in `storage.local`. When
-Firefox starts again, the native host immediately sends the latest state. The
-command updates that state on every sync, so Firefox always receives the
-latest palette when it is running.
+- Automatically updates Firefox whenever you change your Omarchy theme.
+- Themes tabs, toolbars, menus, sidebars, and the new tab page from the full
+  Omarchy palette.
+- Supports both dark and light themes, including custom themes with partial
+  palettes.
+- Restores your current theme when Firefox starts.
+- Provides a small Firefox popup for sync status, manual reapplication, and
+  clearing the applied theme.
+- Runs entirely on your computer, with no account, network service, telemetry,
+  or persistent daemon.
 
 ## Requirements
 
-Runtime requirements:
-
 - Omarchy 4 (Quattro) or newer.
-- Firefox 142 or newer with the
-  [Omafox extension](https://addons.mozilla.org/en-US/firefox/addon/omafox)
-  installed separately.
+- Firefox 142 or newer.
 
-Building from source requires a C17 compiler and Make. On Arch, the
-`base-devel` group provides the required toolchain. The test suite additionally
-uses Node.js, Python 3, and ShellCheck.
+## Installation
 
-## Firefox extension
+Omafox has two parts: the Firefox extension applies the theme, and the AUR
+package connects Firefox to Omarchy. Install both:
 
-The Firefox extension is distributed separately from the Arch package. For
-development, open `about:debugging#/runtime/this-firefox`, choose **Load
-Temporary Add-on**, and select `extension/manifest.json`.
+1. Install the [Omafox extension for
+   Firefox](https://addons.mozilla.org/en-US/firefox/addon/omafox/).
+2. Install the [Omafox AUR package](https://aur.archlinux.org/packages/omafox):
 
-Temporary add-ons are removed when Firefox exits. A permanent installation in
-normal Firefox requires a Mozilla-signed XPI:
+   ```bash
+   yay -S omafox
+   ```
 
-```bash
-cd extension
-./build.sh
-```
+3. Enable theme syncing for your user:
 
-For the first public release, upload the generated XPI through the
-[AMO Developer Hub](https://addons.mozilla.org/developers/) and choose **On
-this site**. For later updates to the public listing, Mozilla's `web-ext`
-utility can submit the extension with AMO API credentials:
+   ```bash
+   omafox setup
+   ```
 
-```bash
-npx web-ext sign --channel listed --source-dir . \
-  --artifacts-dir dist \
-  --ignore-files build.sh 'dist/**' \
-  --api-key "$AMO_JWT_ISSUER" \
-  --api-secret "$AMO_JWT_SECRET"
-```
-
-Omafox makes no network requests and does not collect or transmit data. See
-the [privacy statement](PRIVACY.md) for details.
-
-## Arch/AUR installation
-
-```bash
-yay -S omafox
-omafox setup
-```
-
-The first command builds the C host while creating the Arch package, then
-pacman installs the already-compiled result. A compiler is not needed when
-running Omafox afterward. The second command runs as the desktop user and:
-
-- installs `~/.config/omarchy/hooks/theme-set.d/omafox` using Omarchy's hook
-  command;
-- writes the current palette for the native host.
-
-The package owns these system files:
-
-- `/usr/bin/omafox`
-- `/usr/lib/omafox/omafox-native-host`
-- `/usr/lib/mozilla/native-messaging-hosts/org.omarchy.omafox.json`
-- `/usr/share/omafox/hooks/omafox`
-- documentation and the MIT license under `/usr/share`
-
-Pacman never writes into a user's home directory. Per-user setup is kept
-explicit because package operations run as root and cannot safely select a
-desktop user.
+Setup registers the Omarchy theme-change hook and immediately sends your
+current palette to Firefox. Run it once for each desktop user who wants to use
+Omafox.
 
 ## Usage
 
-```bash
-omafox sync                 # Queue the palette for Firefox
-omafox payload              # Print the current JSON protocol message
-omafox status               # Show the theme and integration state
-omafox setup                # Enable/reconfigure the current user's integration
-omafox remove               # Remove the current user's hook and state
-omafox version              # Print the installed version
-```
-
-Changing the Omarchy theme normally is all that is needed:
+After setup, use Omarchy as usual. Changing the theme automatically updates
+Firefox:
 
 ```bash
 omarchy theme set catppuccin
 ```
 
-## Removal
+Click the Omafox button in Firefox to see the active Omarchy theme, palette
+mode, last sync time, and connection status. The popup can also reapply the
+stored theme or clear it from Firefox.
 
-Remove the user integration before removing the pacman-owned files:
+The command-line helper provides a few additional controls:
+
+```bash
+omafox status    # Show the current theme and integration state
+omafox sync      # Send the current palette to Firefox again
+omafox payload   # Print the current normalized theme message
+omafox setup     # Reconfigure the integration for this user
+omafox remove    # Remove this user's hook and saved theme state
+omafox version   # Show the installed version
+```
+
+## How it works
+
+Omafox is made up of three small parts:
+
+- An Omarchy theme-change hook reads the current `colors.toml` palette and
+  writes a normalized theme message to `~/.local/state/omafox/theme.json`.
+- The native messaging host watches that file with Linux `inotify` and sends
+  updates to Firefox. It sleeps between changes, so no persistent polling or
+  background service is needed.
+- The Firefox extension validates the message, maps the Omarchy colors to the
+  closest Firefox theme properties, and saves the result in Firefox's local
+  extension storage.
+
+The flow is:
+
+```text
+Omarchy theme change
+        ↓
+Theme hook → local state file → native messaging host → Firefox extension
+                                                        ↓
+                                                  Firefox theme
+```
+
+When Firefox starts, the extension restores its saved theme and the native
+host sends the latest Omarchy palette again. Everything stays local to the
+machine; there is no web service or always-running daemon.
+
+## Troubleshooting
+
+If Firefox does not update after a theme change:
+
+1. Confirm that both the Firefox extension and AUR package are installed.
+2. Run `omafox status` and check that the theme state, native host, and native
+   manifest are present.
+3. Run `omafox setup`, followed by `omafox sync`.
+4. Open the Omafox popup in Firefox to check its connection status or reapply
+   the theme.
+
+You can report reproducible problems on [GitHub
+Issues](https://github.com/cover/omafox/issues).
+
+## Privacy
+
+Omafox makes no network requests and does not collect or transmit data. It
+only reads your local Omarchy palette and passes it to Firefox through native
+messaging. See the [privacy statement](PRIVACY.md) for details.
+
+## Uninstallation
+
+Remove the per-user integration before uninstalling the package:
 
 ```bash
 omafox remove
 sudo pacman -Rns omafox
 ```
 
-Then remove the separately installed extension from `about:addons`. Omafox
+Then remove the Omafox extension from Firefox's `about:addons` page. Omafox
 does not modify other Omarchy hooks or desktop configuration.
 
-## Native protocol
+## Acknowledgements
 
-The versioned `theme-set` message has this shape (palette abbreviated):
+Omafox was inspired by [omazed](https://github.com/APS6/omazed), which provides
+live Omarchy theme switching for the Zed editor.
 
-```json
-{
-  "protocol": "omafox",
-  "version": 1,
-  "action": "theme-set",
-  "theme": "osaka-jade",
-  "palette": {
-    "mode": "dark",
-    "accent": "#509475"
-  }
-}
-```
-
-The real `palette` contains all 26 normalized Omarchy fields. This private JSON
-protocol is carried only through native messaging. The extension makes no
-network requests and does not request access to browsing history or website
-contents.
-
-The native host frames and forwards the JSON object without interpreting it.
-The extension accepts only protocol `omafox`, version `1`, and action
-`theme-set`; it also requires exactly the Omarchy palette keys and validates
-every color before applying anything. Firefox has fewer independently
-themeable UI slots than Omarchy, so every value is retained in extension
-storage while the closest semantic colors are mapped onto Firefox theme
-properties.
-
-Omafox preserves valid supplied colors but does not reject an incomplete
-custom palette. It normalizes `#RGB` and `0xRRGGBB`, infers a missing mode from
-the background, derives surface and text variants, and supplies
-mode-appropriate semantic colors. Bright colors derive from their normal
-counterparts; `orange` falls back to `yellow` and `brown` to `muted`.
-
-## Build
-
-```bash
-make
-
-# Test the staged package filesystem without installing it:
-staging=$(mktemp -d)
-make DESTDIR="$staging" PREFIX=/usr install
-```
-
-The suite validates protocol messages, Firefox theme mapping, native messaging
-framing and `inotify` delivery, state updates, the system package layout, and
-per-user packaged setup. The suite runs in Alpine Linux through GitHub Actions
-for every push and pull request.
+Omafox is released under the [MIT License](LICENSE).
