@@ -27,7 +27,7 @@ Omafox has two parts: the Firefox extension applies the theme, and the AUR
 package connects Firefox to Omarchy. Install both:
 
 1. Install the [Omafox extension for
-   Firefox](https://addons.mozilla.org/en-US/firefox/addon/omafox/).
+   Firefox](https://addons.mozilla.org/en-US/firefox/addon/omafox/) _(currently awaiting review from Mozilla)_
 2. Install the [Omafox AUR package](https://aur.archlinux.org/packages/omafox):
 
    ```bash
