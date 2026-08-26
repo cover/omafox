@@ -23,6 +23,7 @@ install: all
 	install -Dm755 $(NATIVE_HOST) "$(DESTDIR)$(PREFIX)/lib/omafox/omafox-native-host"
 	install -Dm644 packaging/org.omarchy.omafox.json "$(DESTDIR)$(PREFIX)/lib/mozilla/native-messaging-hosts/org.omarchy.omafox.json"
 	install -Dm755 packaging/omafox-hook "$(DESTDIR)$(PREFIX)/share/omafox/hooks/omafox"
+	install -Dm644 packaging/zen/omafox.css "$(DESTDIR)$(PREFIX)/share/omafox/zen/omafox.css"
 	install -Dm644 README.md "$(DESTDIR)$(PREFIX)/share/doc/omafox/README.md"
 	install -Dm644 LICENSE "$(DESTDIR)$(PREFIX)/share/licenses/omafox/LICENSE"
 

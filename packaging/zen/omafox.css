@@ -1,0 +1,64 @@
+/* OMAFOX ZEN BRIDGE MANAGED FILE */
+/*
+ * Omafox bridge for Zen Browser.
+ *
+ * Zen deliberately replaces Firefox lightweight themes with its own workspace
+ * theme. Omafox still publishes a standard Firefox theme, so this stylesheet
+ * maps the live lightweight-theme variables to Zen's browser chrome. Scoping
+ * everything to [lwtheme] makes browser.theme.reset() restore Zen's own theme.
+ */
+
+:root[lwtheme] {
+  --zen-primary-color: var(--lwt-tab-line-color, var(--lwt-accent-color)) !important;
+  --zen-colors-primary: var(--urlbarview-background-color-selected, var(--lwt-tab-line-color)) !important;
+  --zen-colors-secondary: var(--tab-background-color-selected, var(--toolbar-background-color)) !important;
+  --zen-colors-tertiary: var(--lwt-accent-color) !important;
+  --zen-colors-hover-bg: var(--toolbarbutton-background-color-hover, var(--tab-background-color-selected)) !important;
+  --zen-colors-primary-foreground: var(--urlbarview-text-color-selected, var(--lwt-text-color)) !important;
+  --zen-colors-border: var(--sidebar-border-color, var(--toolbarseparator-color)) !important;
+  --zen-colors-border-contrast: var(--sidebar-border-color, var(--toolbarseparator-color)) !important;
+  --zen-colors-input-bg: var(--toolbar-background-color, var(--lwt-accent-color)) !important;
+
+  --zen-main-browser-background: var(--lwt-accent-color) !important;
+  --zen-main-browser-background-toolbar: var(--toolbar-background-color, var(--lwt-accent-color)) !important;
+  --zen-themed-toolbar-bg-transparent: var(--toolbar-background-color, var(--lwt-accent-color)) !important;
+  --zen-urlbar-background: var(--toolbar-background-color, var(--lwt-accent-color)) !important;
+
+  --toolbox-textcolor: var(--toolbar-text-color, var(--lwt-text-color)) !important;
+  --toolbar-color: var(--toolbar-text-color, var(--lwt-text-color)) !important;
+  --toolbarbutton-icon-fill: var(--toolbar-text-color, var(--lwt-text-color)) !important;
+  --toolbarbutton-icon-fill-attention: var(--lwt-tab-line-color) !important;
+  --toolbarbutton-hover-background: var(--toolbarbutton-background-color-hover, var(--tab-background-color-selected)) !important;
+  --toolbarbutton-active-background: var(--toolbarbutton-background-color-active, var(--urlbarview-background-color-selected)) !important;
+
+  --toolbar-field-background-color: var(--toolbar-background-color, var(--lwt-accent-color)) !important;
+  --toolbar-field-color: var(--toolbar-field-text-color, var(--lwt-text-color)) !important;
+  --toolbar-field-focus-background-color: var(--toolbar-field-background-color-focus, var(--tab-background-color-selected)) !important;
+  --toolbar-field-focus-color: var(--toolbar-field-text-color-focus, var(--lwt-text-color)) !important;
+  --toolbar-field-focus-border-color: var(--toolbar-field-border-color-focus, var(--lwt-tab-line-color)) !important;
+
+  --arrowpanel-background: var(--panel-background-color, var(--sidebar-background-color)) !important;
+  --arrowpanel-color: var(--panel-text-color, var(--sidebar-text-color)) !important;
+  --arrowpanel-border-color: var(--panel-border-color, var(--sidebar-border-color)) !important;
+
+  --tab-selected-bgcolor: var(--tab-background-color-selected, var(--toolbar-background-color)) !important;
+  --tab-selected-outline-color: var(--lwt-tab-line-color) !important;
+  --tab-background-color-hover: var(--toolbarbutton-background-color-hover, var(--tab-background-color-selected)) !important;
+}
+
+:root[lwtheme][lwt-toolbar="dark"] {
+  color-scheme: dark !important;
+}
+
+:root[lwtheme][lwt-toolbar="light"] {
+  color-scheme: light !important;
+}
+
+/* Own the variables on Zen's two background layers as well. */
+:root[lwtheme] #zen-main-app-wrapper {
+  --zen-main-browser-background: var(--lwt-accent-color) !important;
+}
+
+:root[lwtheme] #zen-toolbar-background {
+  --zen-main-browser-background-toolbar: var(--toolbar-background-color, var(--lwt-accent-color)) !important;
+}
