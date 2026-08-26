@@ -48,6 +48,23 @@ const message = {
 };
 const record = parseThemeMessage(message);
 
+function relativeLuminance(color) {
+  const channels = [1, 3, 5].map((offset) => {
+    const channel = Number.parseInt(color.slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+}
+
+function contrastRatio(first, second) {
+  const firstLuminance = relativeLuminance(first);
+  const secondLuminance = relativeLuminance(second);
+  return (Math.max(firstLuminance, secondLuminance) + 0.05)
+    / (Math.min(firstLuminance, secondLuminance) + 0.05);
+}
+
 assert.equal(PALETTE_KEYS.length, 26);
 assert.equal(COLOR_KEYS.length, 25);
 assert.equal(record.themeName, "osaka-jade");
@@ -87,9 +104,44 @@ const lowContrastIconTheme = toFirefoxTheme({
   }
 });
 assert.equal(lowContrastIconTheme.colors.icons, "#FDFBFB");
-assert.equal(lowContrastIconTheme.colors.button_background_active, "#AE6378");
+assert.ok(
+  contrastRatio(
+    lowContrastIconTheme.colors.button_background_active,
+    lowContrastIconTheme.colors.toolbar_text
+  ) >= 4.5
+);
 assert.equal(lowContrastIconTheme.colors.popup_highlight, "#AE6378");
 assert.equal(lowContrastIconTheme.colors.sidebar_highlight, "#AE6378");
+
+const lowContrastChromeTheme = toFirefoxTheme({
+  ...record,
+  palette: {
+    ...palette,
+    dark_background: "#777777",
+    lighter_background: "#858585",
+    foreground: "#808080",
+    light_foreground: "#828282",
+    bright_foreground: "#848484"
+  }
+});
+assert.ok(
+  contrastRatio(
+    lowContrastChromeTheme.colors.toolbar,
+    lowContrastChromeTheme.colors.toolbar_text
+  ) >= 4.5
+);
+assert.ok(
+  contrastRatio(
+    lowContrastChromeTheme.colors.button_background_hover,
+    lowContrastChromeTheme.colors.toolbar_text
+  ) >= 4.5
+);
+assert.ok(
+  contrastRatio(
+    lowContrastChromeTheme.colors.tab_selected,
+    lowContrastChromeTheme.colors.tab_text
+  ) >= 4.5
+);
 
 const monochromePalette = Object.fromEntries(
   PALETTE_KEYS.map((key) => [key, key === "mode" ? "dark" : "#777777"])

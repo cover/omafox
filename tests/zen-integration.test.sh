@@ -89,8 +89,12 @@ export OMAFOX_ZEN_BRIDGE_SOURCE="$ZEN_BRIDGE_SOURCE"
 [[ $(sed -n '1p' "$ZEN_BRIDGE_SOURCE") == "$ZEN_BRIDGE_MARKER" ]]
 grep -Fq ':root[lwtheme] {' "$ZEN_BRIDGE_SOURCE"
 grep -Fq ':root[lwtheme] #zen-main-app-wrapper {' "$ZEN_BRIDGE_SOURCE"
+grep -Fq ':root[lwtheme]:not([zen-compact-mode="true"]) #navigator-toolbox {' "$ZEN_BRIDGE_SOURCE"
 grep -Fq ':root[lwtheme] #zen-toolbar-background {' "$ZEN_BRIDGE_SOURCE"
+grep -Fq ':root[lwtheme] zen-workspace {' "$ZEN_BRIDGE_SOURCE"
 grep -Fq -- '--zen-main-browser-background:' "$ZEN_BRIDGE_SOURCE"
+grep -Fq -- '--zen-navigator-toolbox-background:' "$ZEN_BRIDGE_SOURCE"
+grep -Fq -- '--zen-toolbar-element-bg-hover:' "$ZEN_BRIDGE_SOURCE"
 grep -Fq -- '--zen-primary-color:' "$ZEN_BRIDGE_SOURCE"
 
 # Unrelated profile customizations alone are not an incomplete Omafox setup.
