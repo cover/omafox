@@ -14,6 +14,7 @@ SYSTEM_COMMAND="$PACKAGE_ROOT/usr/bin/omafox"
 SYSTEM_HOST="$PACKAGE_ROOT/usr/lib/omafox/omafox-native-host"
 SYSTEM_MANIFEST="$PACKAGE_ROOT/usr/lib/mozilla/native-messaging-hosts/org.omarchy.omafox.json"
 SYSTEM_HOOK_SOURCE="$PACKAGE_ROOT/usr/share/omafox/hooks/omafox"
+SYSTEM_ZEN_BRIDGE="$PACKAGE_ROOT/usr/share/omafox/zen/omafox.css"
 
 cleanup() {
   rm -rf "$TEST_ROOT"
@@ -36,9 +37,10 @@ make -C "$PROJECT_DIR" \
 [[ -x $SYSTEM_HOST ]]
 [[ -f $SYSTEM_MANIFEST ]]
 [[ -x $SYSTEM_HOOK_SOURCE ]]
+[[ -f $SYSTEM_ZEN_BRIDGE ]]
 [[ -f "$PACKAGE_ROOT/usr/share/doc/omafox/README.md" ]]
 [[ -f "$PACKAGE_ROOT/usr/share/licenses/omafox/LICENSE" ]]
-[[ $($SYSTEM_COMMAND version) == 1.0.0 ]]
+[[ $($SYSTEM_COMMAND version) == 1.1.0 ]]
 
 python3 - "$SYSTEM_MANIFEST" <<'PY'
 import json
@@ -58,8 +60,17 @@ export PATH="$MOCK_BIN:$PATH"
 export OMAFOX_NATIVE_HOST_PATH="$SYSTEM_HOST"
 export OMAFOX_NATIVE_MANIFEST_PATH="$SYSTEM_MANIFEST"
 export OMAFOX_HOOK_SOURCE="$SYSTEM_HOOK_SOURCE"
+export OMAFOX_ZEN_BRIDGE_SOURCE="$SYSTEM_ZEN_BRIDGE"
 export OMAFOX_THEME_DIR="$THEME_DIR"
 export OMAFOX_THEME_NAME_FILE="$THEME_DIR/theme.name"
+
+ZEN_PROFILE="$TEST_HOME/.config/zen/Profiles/default-release"
+mkdir -p "$ZEN_PROFILE"
+printf '%s\n' \
+  '[Profile0]' \
+  'Name=default-release' \
+  'IsRelative=1' \
+  'Path=Profiles/default-release' > "$TEST_HOME/.config/zen/profiles.ini"
 
 "$SYSTEM_COMMAND" setup >/dev/null
 USER_HOOK="$TEST_HOME/.config/omarchy/hooks/theme-set.d/omafox"
@@ -67,6 +78,9 @@ STATE_FILE="$TEST_HOME/.local/state/omafox/theme.json"
 [[ -x $USER_HOOK ]]
 cmp "$SYSTEM_HOOK_SOURCE" "$USER_HOOK"
 [[ -f $STATE_FILE ]]
+cmp "$SYSTEM_ZEN_BRIDGE" "$ZEN_PROFILE/chrome/omafox.css"
+grep -Fqx '@import url("omafox.css");' "$ZEN_PROFILE/chrome/userChrome.css"
+grep -Fqx 'user_pref("zen.theme.disable-lightweight", false);' "$ZEN_PROFILE/user.js"
 python3 - "$STATE_FILE" <<'PY'
 import json
 import sys
@@ -82,13 +96,18 @@ assert message["palette"]["mode"] == "dark"
 PY
 status_output=$("$SYSTEM_COMMAND" status)
 [[ $status_output == *"Native host: $SYSTEM_HOST (installed)"* ]]
+[[ $status_output == *"Zen profile: $ZEN_PROFILE (configured)"* ]]
 
 "$SYSTEM_COMMAND" remove >/dev/null
 [[ ! -e $USER_HOOK ]]
 [[ ! -e $STATE_FILE ]]
+[[ ! -e $ZEN_PROFILE/chrome/omafox.css ]]
+[[ ! -e $ZEN_PROFILE/chrome/userChrome.css ]]
+[[ ! -e $ZEN_PROFILE/user.js ]]
 [[ ! -d "$TEST_HOME/.local/state/omafox" ]]
 [[ -x $SYSTEM_COMMAND ]]
 [[ -x $SYSTEM_HOST ]]
 [[ -f $SYSTEM_MANIFEST ]]
+[[ -f $SYSTEM_ZEN_BRIDGE ]]
 
 echo "package.test.sh: ok"

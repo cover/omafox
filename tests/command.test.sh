@@ -26,9 +26,9 @@ export PATH="$MOCK_BIN:$PATH"
 export OMAFOX_THEME_DIR="$THEME_DIR"
 export OMAFOX_THEME_NAME_FILE="$THEME_DIR/theme.name"
 
-[[ $("$PROJECT_DIR/omarchy/omafox" version) == 1.0.0 ]]
+[[ $("$PROJECT_DIR/omarchy/omafox" version) == 1.1.0 ]]
 help_output=$("$PROJECT_DIR/omarchy/omafox" help)
-expected_commands=$'Commands:\n  sync     Queue the current palette for Firefox\n  payload  Print the current JSON protocol message\n  status   Show the current theme and integration state\n  setup    Enable the packaged Omafox integration for this user\n  remove   Remove this user\'s Omafox hook and theme state\n  version  Print the Omafox version\n  help     Show this help'
+expected_commands=$'Commands:\n  sync     Queue the current palette for connected browsers\n  payload  Print the current JSON protocol message\n  status   Show the current theme and integration state\n  setup    Enable the packaged Omafox integration for this user\n  remove   Remove this user\'s Omafox hook and theme state\n  version  Print the Omafox version\n  help     Show this help'
 [[ $help_output == *"$expected_commands"* ]]
 
 if unknown_error=$("$PROJECT_DIR/omarchy/omafox" unknown-command 2>&1); then

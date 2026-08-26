@@ -3,7 +3,7 @@
 set -euo pipefail
 
 readonly PROGRAM_NAME="omafox"
-readonly VERSION="1.0.0"
+readonly VERSION="1.1.0"
 readonly PROTOCOL="omafox"
 readonly PROTOCOL_VERSION=1
 readonly ACTION="theme-set"
@@ -17,6 +17,15 @@ readonly NATIVE_HOST_NAME="org.omarchy.omafox"
 readonly NATIVE_HOST_PATH="${OMAFOX_NATIVE_HOST_PATH:-/usr/lib/omafox/omafox-native-host}"
 readonly NATIVE_MANIFEST_PATH="${OMAFOX_NATIVE_MANIFEST_PATH:-/usr/lib/mozilla/native-messaging-hosts/$NATIVE_HOST_NAME.json}"
 readonly HOOK_SOURCE="${OMAFOX_HOOK_SOURCE:-/usr/share/omafox/hooks/omafox}"
+readonly ZEN_ROOT="${OMAFOX_ZEN_ROOT:-$HOME/.config/zen}"
+readonly ZEN_PROFILES_FILE="${OMAFOX_ZEN_PROFILES_FILE:-$ZEN_ROOT/profiles.ini}"
+readonly ZEN_BRIDGE_SOURCE="${OMAFOX_ZEN_BRIDGE_SOURCE:-/usr/share/omafox/zen/omafox.css}"
+readonly ZEN_BRIDGE_MARKER='/* OMAFOX ZEN BRIDGE MANAGED FILE */'
+readonly ZEN_CSS_BEGIN='/* BEGIN OMAFOX ZEN BRIDGE */'
+readonly ZEN_CSS_END='/* END OMAFOX ZEN BRIDGE */'
+readonly ZEN_PREFS_BEGIN='// BEGIN OMAFOX ZEN BRIDGE'
+readonly ZEN_PREFS_END='// END OMAFOX ZEN BRIDGE'
+ZEN_CONFIGURED_COUNT=0
 readonly -a PALETTE_KEYS=(
   mode
   accent selection muted
@@ -30,10 +39,10 @@ usage() {
   cat <<'EOF'
 Usage: omafox <command>
 
-Keep Firefox in sync with the current Omarchy Quattro palette.
+Keep Firefox and Zen Browser in sync with the current Omarchy Quattro palette.
 
 Commands:
-  sync     Queue the current palette for Firefox
+  sync     Queue the current palette for connected browsers
   payload  Print the current JSON protocol message
   status   Show the current theme and integration state
   setup    Enable the packaged Omafox integration for this user
@@ -361,6 +370,330 @@ store_theme_payload() {
   fi
 }
 
+emit_zen_profile() {
+  local path=$1 is_relative=$2
+
+  [[ -n $path ]] || return 0
+  if [[ $is_relative == 1 ]]; then
+    printf '%s/%s\n' "$ZEN_ROOT" "$path"
+  elif [[ $is_relative == 0 ]]; then
+    printf '%s\n' "$path"
+  fi
+}
+
+list_zen_profiles() {
+  local line section="" path="" is_relative=1 key value
+
+  [[ -f $ZEN_PROFILES_FILE ]] || return 0
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%$'\r'}
+    if [[ $line == \[*\] ]]; then
+      if [[ $section == Profile* ]]; then
+        emit_zen_profile "$path" "$is_relative"
+      fi
+      section=${line#\[}
+      section=${section%\]}
+      path=""
+      is_relative=1
+      continue
+    fi
+
+    [[ $section == Profile* && $line == *"="* ]] || continue
+    key=$(trim "${line%%=*}")
+    value=$(trim "${line#*=}")
+    case $key in
+      Path) path=$value ;;
+      IsRelative) is_relative=$value ;;
+    esac
+  done < "$ZEN_PROFILES_FILE"
+
+  if [[ $section == Profile* ]]; then
+    emit_zen_profile "$path" "$is_relative"
+  fi
+}
+
+list_unique_zen_profiles() {
+  local profile
+  local -a profiles=()
+  local -A seen=()
+
+  mapfile -t profiles < <(list_zen_profiles)
+  for profile in "${profiles[@]}"; do
+    [[ -n $profile && -z ${seen[$profile]+x} ]] || continue
+    seen["$profile"]=1
+    printf '%s\n' "$profile"
+  done
+}
+
+zen_bridge_owned() {
+  local target=$1 first_line=""
+
+  [[ -f $target && ! -L $target ]] || return 1
+  IFS= read -r first_line < "$target" || true
+  [[ $first_line == "$ZEN_BRIDGE_MARKER" ]]
+}
+
+validate_zen_bridge() {
+  local target=$1
+
+  [[ ! -L $target ]] || fail "refusing to replace symlinked Zen bridge: $target"
+  [[ ! -e $target || -f $target ]] || fail "Zen bridge path is not a regular file: $target"
+  [[ ! -f $target ]] || zen_bridge_owned "$target" || fail "refusing to modify unmanaged Zen bridge: $target"
+}
+
+validate_managed_block() {
+  local target=$1 begin=$2 end=$3 begin_count end_count begin_match end_match
+
+  [[ ! -L $target ]] || fail "refusing to replace symlinked Zen profile file: $target"
+  [[ ! -e $target || -f $target ]] || fail "Zen profile path is not a regular file: $target"
+  [[ -f $target ]] || return 0
+
+  begin_count=$(grep -Fxc "$begin" "$target" || true)
+  end_count=$(grep -Fxc "$end" "$target" || true)
+  if (( begin_count != end_count || begin_count > 1 )); then
+    fail "malformed Omafox markers in Zen profile file: $target"
+  fi
+  if (( begin_count == 1 )); then
+    begin_match=$(grep -Fnx "$begin" "$target")
+    end_match=$(grep -Fnx "$end" "$target")
+    if (( ${begin_match%%:*} >= ${end_match%%:*} )); then
+      fail "malformed Omafox markers in Zen profile file: $target"
+    fi
+  fi
+}
+
+emit_without_managed_block() {
+  local input=$1 begin=$2 end=$3
+
+  [[ -f $input ]] || return 0
+
+  awk -v begin="$begin" -v end="$end" '
+    $0 == begin { managed = 1; next }
+    $0 == end { managed = 0; next }
+    !managed { print }
+  ' "$input"
+}
+
+atomic_replace_profile_file() {
+  local target=$1 temporary_file=$2 mode=600
+
+  if [[ -f $target ]]; then
+    mode=$(stat -c '%a' "$target")
+  fi
+  chmod "$mode" "$temporary_file"
+  mv -f "$temporary_file" "$target"
+}
+
+install_zen_user_chrome() {
+  local target=$1 temporary_file
+
+  validate_managed_block "$target" "$ZEN_CSS_BEGIN" "$ZEN_CSS_END"
+  temporary_file=$(mktemp "$(dirname "$target")/.userChrome.css.XXXXXX")
+
+  {
+    printf '%s\n' "$ZEN_CSS_BEGIN"
+    printf '%s\n' '@import url("omafox.css");'
+    printf '\n'
+    printf '%s\n' "$ZEN_CSS_END"
+    emit_without_managed_block "$target" "$ZEN_CSS_BEGIN" "$ZEN_CSS_END"
+  } > "$temporary_file"
+
+  atomic_replace_profile_file "$target" "$temporary_file"
+}
+
+install_zen_user_prefs() {
+  local target=$1 temporary_file
+
+  validate_managed_block "$target" "$ZEN_PREFS_BEGIN" "$ZEN_PREFS_END"
+  temporary_file=$(mktemp "$(dirname "$target")/.user.js.XXXXXX")
+
+  {
+    emit_without_managed_block "$target" "$ZEN_PREFS_BEGIN" "$ZEN_PREFS_END"
+    printf '%s\n' "$ZEN_PREFS_BEGIN"
+    printf '%s\n' 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
+    printf '%s\n' 'user_pref("zen.theme.disable-lightweight", false);'
+    printf '%s\n' "$ZEN_PREFS_END"
+  } > "$temporary_file"
+
+  atomic_replace_profile_file "$target" "$temporary_file"
+}
+
+configure_zen_profile() {
+  local profile=$1 chrome_dir bridge_target user_chrome user_prefs
+
+  chrome_dir="$profile/chrome"
+
+  if [[ -e $chrome_dir && ! -d $chrome_dir ]]; then
+    fail "Zen chrome path is not a directory: $chrome_dir"
+  elif [[ ! -d $chrome_dir ]]; then
+    install -d -m 700 "$chrome_dir"
+  fi
+  bridge_target="$chrome_dir/omafox.css"
+  user_chrome="$chrome_dir/userChrome.css"
+  user_prefs="$profile/user.js"
+
+  validate_zen_bridge "$bridge_target"
+  validate_managed_block "$user_chrome" "$ZEN_CSS_BEGIN" "$ZEN_CSS_END"
+  validate_managed_block "$user_prefs" "$ZEN_PREFS_BEGIN" "$ZEN_PREFS_END"
+  install -m 600 "$ZEN_BRIDGE_SOURCE" "$bridge_target"
+  install_zen_user_chrome "$user_chrome"
+  install_zen_user_prefs "$user_prefs"
+  printf 'Configured Zen profile: %s\n' "$profile"
+}
+
+validate_zen_profile() {
+  local profile=$1 chrome_dir bridge_target
+
+  chrome_dir="$profile/chrome"
+  bridge_target="$chrome_dir/omafox.css"
+  [[ ! -e $chrome_dir || -d $chrome_dir ]] || \
+    fail "Zen chrome path is not a directory: $chrome_dir"
+  validate_zen_bridge "$bridge_target"
+  validate_managed_block "$chrome_dir/userChrome.css" "$ZEN_CSS_BEGIN" "$ZEN_CSS_END"
+  validate_managed_block "$profile/user.js" "$ZEN_PREFS_BEGIN" "$ZEN_PREFS_END"
+}
+
+setup_zen_profiles() {
+  local profile
+  local -a profiles=() existing_profiles=()
+
+  ZEN_CONFIGURED_COUNT=0
+  [[ -f $ZEN_PROFILES_FILE ]] || return 0
+  mapfile -t profiles < <(list_unique_zen_profiles)
+  for profile in "${profiles[@]}"; do
+    if [[ ! -d $profile ]]; then
+      printf 'Skipped missing Zen profile: %s\n' "$profile" >&2
+      continue
+    fi
+    existing_profiles+=("$profile")
+  done
+
+  (( ${#existing_profiles[@]} > 0 )) || return 0
+  zen_bridge_owned "$ZEN_BRIDGE_SOURCE" || \
+    fail "packaged Zen bridge is missing or invalid: $ZEN_BRIDGE_SOURCE"
+  for profile in "${existing_profiles[@]}"; do
+    validate_zen_profile "$profile"
+  done
+  for profile in "${existing_profiles[@]}"; do
+    configure_zen_profile "$profile"
+    ((ZEN_CONFIGURED_COUNT += 1))
+  done
+}
+
+managed_block_present() {
+  local target=$1 begin=$2 end=$3
+  [[ -f $target ]] \
+    && grep -Fqx "$begin" "$target" \
+    && grep -Fqx "$end" "$target"
+}
+
+managed_marker_present() {
+  local target=$1 begin=$2 end=$3
+  [[ -f $target ]] \
+    && { grep -Fqx "$begin" "$target" || grep -Fqx "$end" "$target"; }
+}
+
+zen_profile_status() {
+  local profile=$1 bridge user_chrome user_prefs
+
+  bridge="$profile/chrome/omafox.css"
+  user_chrome="$profile/chrome/userChrome.css"
+  user_prefs="$profile/user.js"
+
+  if [[ -e $bridge || -L $bridge ]] && ! zen_bridge_owned "$bridge"; then
+    printf 'conflict'
+  elif zen_bridge_owned "$bridge" \
+      && managed_block_present "$user_chrome" "$ZEN_CSS_BEGIN" "$ZEN_CSS_END" \
+      && managed_block_present "$user_prefs" "$ZEN_PREFS_BEGIN" "$ZEN_PREFS_END"; then
+    if [[ -f $ZEN_BRIDGE_SOURCE ]] && ! cmp -s "$ZEN_BRIDGE_SOURCE" "$bridge"; then
+      printf 'outdated'
+    else
+      printf 'configured'
+    fi
+  elif [[ -e $bridge ]] \
+      || managed_marker_present "$user_chrome" "$ZEN_CSS_BEGIN" "$ZEN_CSS_END" \
+      || managed_marker_present "$user_prefs" "$ZEN_PREFS_BEGIN" "$ZEN_PREFS_END"; then
+    printf 'incomplete'
+  else
+    printf 'not configured'
+  fi
+}
+
+show_zen_status() {
+  local profile found=0
+  local -a profiles=()
+
+  if [[ ! -f $ZEN_PROFILES_FILE ]]; then
+    printf 'Zen profiles: not detected (%s)\n' "$ZEN_PROFILES_FILE"
+    return 0
+  fi
+
+  mapfile -t profiles < <(list_unique_zen_profiles)
+  for profile in "${profiles[@]}"; do
+    found=1
+    if [[ -d $profile ]]; then
+      printf 'Zen profile: %s (%s)\n' "$profile" "$(zen_profile_status "$profile")"
+    else
+      printf 'Zen profile: %s (missing)\n' "$profile"
+    fi
+  done
+  (( found == 1 )) || printf 'Zen profiles: none listed in %s\n' "$ZEN_PROFILES_FILE"
+}
+
+remove_managed_profile_block() {
+  local target=$1 begin=$2 end=$3 temporary_file
+
+  [[ -e $target || -L $target ]] || return 0
+  validate_managed_block "$target" "$begin" "$end"
+  managed_block_present "$target" "$begin" "$end" || return 0
+  temporary_file=$(mktemp "$(dirname "$target")/.$(basename "$target").XXXXXX")
+  emit_without_managed_block "$target" "$begin" "$end" > "$temporary_file"
+  if [[ -s $temporary_file ]]; then
+    atomic_replace_profile_file "$target" "$temporary_file"
+  else
+    rm -f "$target" "$temporary_file"
+  fi
+}
+
+remove_zen_profile() {
+  local profile=$1 bridge configured=0
+
+  bridge="$profile/chrome/omafox.css"
+  validate_zen_bridge "$bridge"
+  if [[ -e $bridge ]] \
+      || managed_marker_present "$profile/chrome/userChrome.css" "$ZEN_CSS_BEGIN" "$ZEN_CSS_END" \
+      || managed_marker_present "$profile/user.js" "$ZEN_PREFS_BEGIN" "$ZEN_PREFS_END"; then
+    configured=1
+  fi
+
+  remove_managed_profile_block \
+    "$profile/chrome/userChrome.css" "$ZEN_CSS_BEGIN" "$ZEN_CSS_END"
+  remove_managed_profile_block \
+    "$profile/user.js" "$ZEN_PREFS_BEGIN" "$ZEN_PREFS_END"
+  if [[ -f $bridge ]]; then
+    rm -f "$bridge"
+  fi
+  if (( configured == 1 )); then
+    printf 'Removed Zen profile bridge: %s\n' "$profile"
+  fi
+}
+
+remove_zen_profiles() {
+  local profile
+  local -a profiles=()
+
+  [[ -f $ZEN_PROFILES_FILE ]] || return 0
+  mapfile -t profiles < <(list_unique_zen_profiles)
+  for profile in "${profiles[@]}"; do
+    [[ -d $profile ]] || continue
+    validate_zen_profile "$profile"
+  done
+  for profile in "${profiles[@]}"; do
+    [[ -d $profile ]] || continue
+    remove_zen_profile "$profile"
+  done
+}
+
 show_status() {
   local theme_name="unknown"
   if [[ -f $QUATTRO_THEME_NAME_FILE ]]; then
@@ -374,6 +707,7 @@ show_status() {
   printf 'Theme state: %s (%s)\n' "$STATE_FILE" "$([[ -f $STATE_FILE ]] && echo ready || echo missing)"
   printf 'Native host: %s (%s)\n' "$NATIVE_HOST_PATH" "$([[ -x $NATIVE_HOST_PATH ]] && echo installed || echo missing)"
   printf 'Native manifest: %s (%s)\n' "$NATIVE_MANIFEST_PATH" "$([[ -f $NATIVE_MANIFEST_PATH ]] && echo installed || echo missing)"
+  show_zen_status
 }
 
 setup_omafox() {
@@ -385,11 +719,17 @@ setup_omafox() {
   omarchy hook install theme-set "$HOOK_SOURCE"
   printf 'Enabled user hook: %s\n' "$HOOK_PATH"
   printf 'Using packaged native host: %s\n' "$NATIVE_HOST_PATH"
+  setup_zen_profiles
   sync_theme
-  echo "Queued the current Omarchy palette for Firefox."
+  echo "Queued the current Omarchy palette for connected browsers."
+  if (( ZEN_CONFIGURED_COUNT > 0 )); then
+    echo "Restart Zen Browser once to load the Omafox bridge."
+  fi
 }
 
 remove_omafox() {
+  remove_zen_profiles
+
   if [[ -e $HOOK_PATH || -L $HOOK_PATH ]]; then
     rm -f "$HOOK_PATH"
     printf 'Removed hook: %s\n' "$HOOK_PATH"

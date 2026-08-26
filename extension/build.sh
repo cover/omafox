@@ -23,4 +23,4 @@ rm -f "$ARTIFACT"
 )
 
 echo "Built $ARTIFACT"
-echo "Note: normal Firefox installations require Mozilla to sign the XPI."
+echo "Note: normal Firefox and Zen Browser installations require Mozilla to sign the XPI."
