@@ -18,6 +18,7 @@
   --zen-colors-border: var(--sidebar-border-color, var(--toolbarseparator-color)) !important;
   --zen-colors-border-contrast: var(--sidebar-border-color, var(--toolbarseparator-color)) !important;
   --zen-colors-input-bg: var(--toolbar-background-color, var(--lwt-accent-color)) !important;
+  --zen-toolbar-element-bg-hover: var(--toolbarbutton-background-color-hover, var(--tab-background-color-selected)) !important;
 
   --zen-main-browser-background: var(--lwt-accent-color) !important;
   --zen-main-browser-background-toolbar: var(--toolbar-background-color, var(--lwt-accent-color)) !important;
@@ -59,6 +60,21 @@
   --zen-main-browser-background: var(--lwt-accent-color) !important;
 }
 
+/* In normal mode Zen leaves the sidebar toolbox transparent. Compact mode
+ * paints its own floating background layer, so only fill the static toolbox. */
+:root[lwtheme]:not([zen-compact-mode="true"]) #navigator-toolbox {
+  --zen-navigator-toolbox-background: var(--zen-main-browser-background-toolbar) !important;
+  background: var(--zen-navigator-toolbox-background) !important;
+  color: var(--toolbar-text-color, var(--lwt-text-color)) !important;
+}
+
 :root[lwtheme] #zen-toolbar-background {
   --zen-main-browser-background-toolbar: var(--toolbar-background-color, var(--lwt-accent-color)) !important;
+}
+
+/* Zen overrides selected-tab colors on each workspace. Inherit the live
+ * WebExtension values so selected labels retain the contrast chosen above. */
+:root[lwtheme] zen-workspace {
+  --tab-background-color-selected: inherit !important;
+  --tab-selected-textcolor: inherit !important;
 }

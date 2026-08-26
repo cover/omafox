@@ -74,10 +74,15 @@
     return Math.min(...foregrounds.map((foreground) => contrastRatio(background, foreground)));
   }
 
-  function readableBackgroundColor(foregrounds, preferred, alternatives) {
+  function readableBackgroundColor(
+    foregrounds,
+    preferred,
+    alternatives,
+    requiredContrast = MIN_ICON_CONTRAST
+  ) {
     const candidates = [preferred, ...alternatives];
     for (const candidate of candidates) {
-      if (minimumContrast(candidate, foregrounds) >= MIN_ICON_CONTRAST) {
+      if (minimumContrast(candidate, foregrounds) >= requiredContrast) {
         return candidate;
       }
     }
@@ -151,6 +156,46 @@
     }
 
     const color = validatePalette(record.palette);
+    const chromeTextAlternatives = [
+      color.light_foreground,
+      color.bright_foreground,
+      color.dark_foreground,
+      color.background,
+      color.darker_background,
+      color.lighter_background
+    ];
+    const toolbarText = readableTextColor(
+      color.dark_background,
+      color.foreground,
+      chromeTextAlternatives
+    );
+    const tabBackgroundText = readableTextColor(
+      color.background,
+      color.foreground,
+      chromeTextAlternatives
+    );
+    const selectedTabText = readableTextColor(
+      color.lighter_background,
+      color.bright_foreground,
+      [
+        color.foreground,
+        color.light_foreground,
+        color.dark_foreground,
+        color.background,
+        color.dark_background,
+        color.darker_background
+      ]
+    );
+    const toolbarFieldText = readableTextColor(
+      color.darker_background,
+      color.light_foreground,
+      chromeTextAlternatives
+    );
+    const toolbarFieldFocusText = readableTextColor(
+      color.background,
+      color.bright_foreground,
+      chromeTextAlternatives
+    );
     const highlightText = readableTextColor(color.selection, color.bright_foreground, [
       color.foreground,
       color.light_foreground,
@@ -160,9 +205,8 @@
       color.darker_background,
       color.lighter_background
     ]);
-    const iconColors = [color.light_foreground, color.bright_yellow];
     const buttonBackgroundHover = readableBackgroundColor(
-      iconColors,
+      [toolbarText],
       color.lighter_background,
       [
         color.accent,
@@ -171,10 +215,11 @@
         color.dark_background,
         color.background,
         color.darker_background
-      ]
+      ],
+      MIN_TEXT_CONTRAST
     );
     const buttonBackgroundActive = readableBackgroundColor(
-      iconColors,
+      [toolbarText],
       color.selection,
       [
         color.accent,
@@ -183,7 +228,8 @@
         color.dark_background,
         color.background,
         color.darker_background
-      ]
+      ],
+      MIN_TEXT_CONTRAST
     );
     const selectedRowBackground = readableBackgroundColor(
       [color.foreground],
@@ -214,17 +260,17 @@
       colors: {
         frame: color.background,
         frame_inactive: color.dark_background,
-        tab_background_text: color.foreground,
-        tab_text: color.bright_foreground,
+        tab_background_text: tabBackgroundText,
+        tab_text: selectedTabText,
         tab_selected: color.lighter_background,
         tab_line: color.accent,
         tab_loading: color.bright_cyan,
         toolbar: color.dark_background,
-        toolbar_text: color.foreground,
+        toolbar_text: toolbarText,
         toolbar_field: color.darker_background,
-        toolbar_field_text: color.light_foreground,
+        toolbar_field_text: toolbarFieldText,
         toolbar_field_focus: color.background,
-        toolbar_field_text_focus: color.bright_foreground,
+        toolbar_field_text_focus: toolbarFieldFocusText,
         toolbar_field_border: color.muted,
         toolbar_field_border_focus: color.bright_blue,
         toolbar_field_highlight: color.selection,
@@ -233,20 +279,20 @@
         button_background_active: buttonBackgroundActive,
         icons: color.light_foreground,
         icons_attention: color.bright_yellow,
-        bookmark_text: color.foreground,
+        bookmark_text: toolbarText,
         popup: color.dark_background,
-        popup_text: color.foreground,
+        popup_text: toolbarText,
         popup_border: color.muted,
         popup_highlight: selectedRowBackground,
         popup_highlight_text: selectedRowText,
         sidebar: color.dark_background,
-        sidebar_text: color.foreground,
+        sidebar_text: toolbarText,
         sidebar_border: color.muted,
         sidebar_highlight: selectedRowBackground,
         sidebar_highlight_text: selectedRowText,
         ntp_background: color.background,
         ntp_card_background: color.lighter_background,
-        ntp_text: color.foreground,
+        ntp_text: tabBackgroundText,
         toolbar_top_separator: color.muted,
         toolbar_bottom_separator: color.brown,
         toolbar_vertical_separator: color.muted
