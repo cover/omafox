@@ -25,21 +25,30 @@ Omafox keeps Firefox and Zen Browser in sync with your current
 - Firefox 142 or newer, or a current native Zen Browser installation.
 
 Flatpak installations of Zen are not currently supported because their
-sandbox cannot use the host native-messaging manifest installed by the AUR
+sandbox cannot use the host native-messaging manifest installed by the
 package.
 
 ## Installation
 
-Omafox has two parts: the Gecko extension applies the theme, and the AUR
+Omafox has two parts: the Gecko extension applies the theme, and the native
 package connects the browser to Omarchy. The same signed extension works in
 Firefox and Zen Browser. Install both:
 
 1. Install the [Omafox extension for
    Firefox or Zen Browser](https://addons.mozilla.org/en-US/firefox/addon/omafox/)
-2. Install the [Omafox AUR package](https://aur.archlinux.org/packages/omafox):
+2. Install the native package. Arch Linux removed Omafox from the AUR because
+   it only works on Omarchy; an
+   [open pull request](https://github.com/omacom/omarchy-pkgs/pull/1840)
+   proposes adding it to the Omarchy packages. Until then, download the
+   package files from the pull request and build and install them with
+   `makepkg` (from the `base-devel` package group):
 
    ```bash
-   yay -S omafox
+   mkdir -p omafox-package
+   cd omafox-package
+   curl -fLO https://raw.githubusercontent.com/omacom/omarchy-pkgs/refs/pull/1840/head/pkgbuilds/omafox/PKGBUILD
+   curl -fLO https://raw.githubusercontent.com/omacom/omarchy-pkgs/refs/pull/1840/head/pkgbuilds/omafox/omafox.install
+   makepkg -si
    ```
 
 3. Enable theme syncing for your user:
@@ -55,6 +64,9 @@ installs the Omafox CSS bridge into each existing profile, and enables the two
 Zen preferences it needs. Restart Zen once after setup. Run setup once for
 each desktop user who wants to use Omafox, and rerun it after creating a new
 Zen profile.
+
+If the theme does not update after setup, completely close and restart the
+browser. If it still does not update, restart your system.
 
 ## Usage
 
@@ -120,14 +132,16 @@ local to the machine; there is no web service or always-running daemon.
 
 If a browser does not update after a theme change:
 
-1. Confirm that both the Omafox extension and AUR package are installed.
+1. Confirm that both the Omafox extension and native package are installed.
 2. Run `omafox status` and check that the theme state, native host, and native
    manifest are present. For Zen, also check that each profile says
    `configured`. A `conflict` status means the profile already contains an
    unrelated `chrome/omafox.css`; rename or remove that file before setup.
 3. Run `omafox setup`, followed by `omafox sync`.
-4. Restart Zen if its bridge was newly installed or updated.
+4. Completely close and restart the browser. Zen also requires a restart if
+   its bridge was newly installed or updated.
 5. Open the Omafox popup to check its connection status or reapply the theme.
+6. If the theme still does not update, restart your system.
 
 You can report reproducible problems on [GitHub
 Issues](https://github.com/cover/omafox/issues).
