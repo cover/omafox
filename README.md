@@ -129,9 +129,11 @@ Omafox is made up of a few small parts:
   regenerates it whenever the Omarchy theme changes; restart Firefox to apply
   the new color. Setup refuses to overwrite an unrelated
   `chrome/omafox-blank-page.css` file.
-  A managed `userChrome.css` block reuses Firefox's `--tabs-navbar-separator-*`
-  values for the content separator, so the line under the address bar matches
-  the one between the tab strip and the address bar.
+  A managed `userChrome.css` block colors the tab-panel backdrop with the
+  theme background, so opening a new tab no longer flashes Firefox's default
+  box color, and reuses Firefox's `--tabs-navbar-separator-*` values for the
+  content separator so the line under the address bar matches the one between
+  the tab strip and the address bar.
 
 The flow is:
 

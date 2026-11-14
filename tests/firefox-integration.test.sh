@@ -108,6 +108,9 @@ for profile in "$RELATIVE_PROFILE" "$ABSOLUTE_PROFILE"; do
   [[ $(stat -c '%a' "$css") == 600 ]]
   [[ $(grep -Fxc "$CHROME_BEGIN" "$profile/chrome/userChrome.css") == 1 ]]
   [[ $(grep -Fxc "$CHROME_END" "$profile/chrome/userChrome.css") == 1 ]]
+  [[ $(grep -Fxc '@media not -moz-pref("browser.newtabpage.enabled") {' "$profile/chrome/userChrome.css") == 1 ]]
+  [[ $(grep -Fxc '  :root:not([privatebrowsingmode="temporary"]) {' "$profile/chrome/userChrome.css") == 1 ]]
+  [[ $(grep -Fxc '    --tabpanel-background-color: var(--lwt-accent-color) !important;' "$profile/chrome/userChrome.css") == 1 ]]
   [[ $(grep -Fxc '  border-block-start-width: 0.01px !important;' "$profile/chrome/userChrome.css") == 1 ]]
   grep -Fqx '  border-block-start-color: var(--tabs-navbar-separator-color) !important;' \
     "$profile/chrome/userChrome.css"
