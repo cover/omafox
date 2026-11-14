@@ -25,7 +25,15 @@ readonly ZEN_CSS_BEGIN='/* BEGIN OMAFOX ZEN BRIDGE */'
 readonly ZEN_CSS_END='/* END OMAFOX ZEN BRIDGE */'
 readonly ZEN_PREFS_BEGIN='// BEGIN OMAFOX ZEN BRIDGE'
 readonly ZEN_PREFS_END='// END OMAFOX ZEN BRIDGE'
+readonly FIREFOX_ROOT="${OMAFOX_FIREFOX_ROOT:-$HOME/.config/mozilla/firefox}"
+readonly FIREFOX_PROFILES_FILE="${OMAFOX_FIREFOX_PROFILES_FILE:-$FIREFOX_ROOT/profiles.ini}"
+readonly BLANK_PAGE_MARKER='/* OMAFOX FIREFOX BLANK PAGE MANAGED FILE */'
+readonly BLANK_PAGE_CSS_BEGIN='/* BEGIN OMAFOX FIREFOX BLANK PAGE */'
+readonly BLANK_PAGE_CSS_END='/* END OMAFOX FIREFOX BLANK PAGE */'
+readonly BLANK_PAGE_PREFS_BEGIN='// BEGIN OMAFOX FIREFOX BLANK PAGE'
+readonly BLANK_PAGE_PREFS_END='// END OMAFOX FIREFOX BLANK PAGE'
 ZEN_CONFIGURED_COUNT=0
+FIREFOX_CONFIGURED_COUNT=0
 readonly -a PALETTE_KEYS=(
   mode
   accent selection muted
@@ -353,6 +361,9 @@ build_payload() {
 
 sync_theme() {
   local payload
+  require_quattro
+  read_palette
+  refresh_blank_page_styles
   payload=$(build_payload)
   store_theme_payload "$payload"
 }
@@ -370,26 +381,27 @@ store_theme_payload() {
   fi
 }
 
-emit_zen_profile() {
-  local path=$1 is_relative=$2
+emit_profile() {
+  local path=$1 is_relative=$2 root=$3
 
   [[ -n $path ]] || return 0
   if [[ $is_relative == 1 ]]; then
-    printf '%s/%s\n' "$ZEN_ROOT" "$path"
+    printf '%s/%s\n' "$root" "$path"
   elif [[ $is_relative == 0 ]]; then
     printf '%s\n' "$path"
   fi
 }
 
-list_zen_profiles() {
+list_profiles_ini() {
+  local profiles_file=$1 root=$2
   local line section="" path="" is_relative=1 key value
 
-  [[ -f $ZEN_PROFILES_FILE ]] || return 0
+  [[ -f $profiles_file ]] || return 0
   while IFS= read -r line || [[ -n $line ]]; do
     line=${line%$'\r'}
     if [[ $line == \[*\] ]]; then
       if [[ $section == Profile* ]]; then
-        emit_zen_profile "$path" "$is_relative"
+        emit_profile "$path" "$is_relative" "$root"
       fi
       section=${line#\[}
       section=${section%\]}
@@ -405,24 +417,32 @@ list_zen_profiles() {
       Path) path=$value ;;
       IsRelative) is_relative=$value ;;
     esac
-  done < "$ZEN_PROFILES_FILE"
+  done < "$profiles_file"
 
   if [[ $section == Profile* ]]; then
-    emit_zen_profile "$path" "$is_relative"
+    emit_profile "$path" "$is_relative" "$root"
   fi
 }
 
-list_unique_zen_profiles() {
-  local profile
+list_unique_profiles() {
+  local profiles_file=$1 root=$2 profile
   local -a profiles=()
   local -A seen=()
 
-  mapfile -t profiles < <(list_zen_profiles)
+  mapfile -t profiles < <(list_profiles_ini "$profiles_file" "$root")
   for profile in "${profiles[@]}"; do
     [[ -n $profile && -z ${seen[$profile]+x} ]] || continue
     seen["$profile"]=1
     printf '%s\n' "$profile"
   done
+}
+
+list_unique_zen_profiles() {
+  list_unique_profiles "$ZEN_PROFILES_FILE" "$ZEN_ROOT"
+}
+
+list_unique_firefox_profiles() {
+  list_unique_profiles "$FIREFOX_PROFILES_FILE" "$FIREFOX_ROOT"
 }
 
 zen_bridge_owned() {
@@ -444,20 +464,20 @@ validate_zen_bridge() {
 validate_managed_block() {
   local target=$1 begin=$2 end=$3 begin_count end_count begin_match end_match
 
-  [[ ! -L $target ]] || fail "refusing to replace symlinked Zen profile file: $target"
-  [[ ! -e $target || -f $target ]] || fail "Zen profile path is not a regular file: $target"
+  [[ ! -L $target ]] || fail "refusing to replace symlinked profile file: $target"
+  [[ ! -e $target || -f $target ]] || fail "profile path is not a regular file: $target"
   [[ -f $target ]] || return 0
 
   begin_count=$(grep -Fxc "$begin" "$target" || true)
   end_count=$(grep -Fxc "$end" "$target" || true)
   if (( begin_count != end_count || begin_count > 1 )); then
-    fail "malformed Omafox markers in Zen profile file: $target"
+    fail "malformed Omafox markers in profile file: $target"
   fi
   if (( begin_count == 1 )); then
     begin_match=$(grep -Fnx "$begin" "$target")
     end_match=$(grep -Fnx "$end" "$target")
     if (( ${begin_match%%:*} >= ${end_match%%:*} )); then
-      fail "malformed Omafox markers in Zen profile file: $target"
+      fail "malformed Omafox markers in profile file: $target"
     fi
   fi
 }
@@ -577,6 +597,239 @@ setup_zen_profiles() {
   for profile in "${existing_profiles[@]}"; do
     configure_zen_profile "$profile"
     ((ZEN_CONFIGURED_COUNT += 1))
+  done
+}
+
+blank_page_css() {
+  printf '%s\n' "$BLANK_PAGE_MARKER"
+  printf '%s\n' '@-moz-document url("chrome://browser/content/blanktab.html") {'
+  printf '  :root {\n'
+  printf '    background-color: %s !important;\n' "${OMAFOX_PALETTE[background]}"
+  printf '    color-scheme: %s !important;\n' "${OMAFOX_PALETTE[mode]}"
+  printf '  }\n'
+  printf '}\n'
+}
+
+blank_page_owned() {
+  local target=$1 first_line=""
+
+  [[ -f $target && ! -L $target ]] || return 1
+  IFS= read -r first_line < "$target" || true
+  [[ $first_line == "$BLANK_PAGE_MARKER" ]]
+}
+
+validate_blank_page_file() {
+  local target=$1
+
+  [[ ! -L $target ]] || fail "refusing to replace symlinked Firefox blank page stylesheet: $target"
+  [[ ! -e $target || -f $target ]] || fail "blank page stylesheet path is not a regular file: $target"
+  [[ ! -f $target ]] || blank_page_owned "$target" || \
+    fail "refusing to modify unmanaged Firefox blank page stylesheet: $target"
+}
+
+write_blank_page_file() {
+  local target=$1 temporary_file
+
+  validate_blank_page_file "$target"
+  temporary_file=$(mktemp "$(dirname "$target")/.omafox-blank-page.css.XXXXXX")
+  blank_page_css > "$temporary_file"
+  chmod 600 "$temporary_file"
+  mv -f "$temporary_file" "$target"
+}
+
+blank_page_configured() {
+  local profile=$1
+
+  blank_page_owned "$profile/chrome/omafox-blank-page.css" \
+    && managed_block_present "$profile/chrome/userContent.css" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END" \
+    && managed_block_present "$profile/user.js" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"
+}
+
+refresh_blank_page_styles() {
+  local profile
+  local -a profiles=()
+
+  [[ -f $FIREFOX_PROFILES_FILE ]] || return 0
+  mapfile -t profiles < <(list_unique_firefox_profiles)
+  for profile in "${profiles[@]}"; do
+    [[ -d $profile ]] || continue
+    blank_page_configured "$profile" || continue
+    write_blank_page_file "$profile/chrome/omafox-blank-page.css"
+  done
+}
+
+install_blank_page_user_content() {
+  local target=$1 temporary_file
+
+  validate_managed_block "$target" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END"
+  temporary_file=$(mktemp "$(dirname "$target")/.userContent.css.XXXXXX")
+
+  {
+    printf '%s\n' "$BLANK_PAGE_CSS_BEGIN"
+    printf '%s\n' '@import url("omafox-blank-page.css");'
+    printf '\n'
+    printf '%s\n' "$BLANK_PAGE_CSS_END"
+    emit_without_managed_block "$target" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END"
+  } > "$temporary_file"
+
+  atomic_replace_profile_file "$target" "$temporary_file"
+}
+
+install_blank_page_prefs() {
+  local target=$1 temporary_file
+
+  validate_managed_block "$target" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"
+  temporary_file=$(mktemp "$(dirname "$target")/.user.js.XXXXXX")
+
+  {
+    emit_without_managed_block "$target" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"
+    printf '%s\n' "$BLANK_PAGE_PREFS_BEGIN"
+    printf '%s\n' 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
+    printf '%s\n' "$BLANK_PAGE_PREFS_END"
+  } > "$temporary_file"
+
+  atomic_replace_profile_file "$target" "$temporary_file"
+}
+
+configure_firefox_profile() {
+  local profile=$1 chrome_dir css_target user_content user_prefs
+
+  chrome_dir="$profile/chrome"
+
+  if [[ -e $chrome_dir && ! -d $chrome_dir ]]; then
+    fail "Firefox chrome path is not a directory: $chrome_dir"
+  elif [[ ! -d $chrome_dir ]]; then
+    install -d -m 700 "$chrome_dir"
+  fi
+  css_target="$chrome_dir/omafox-blank-page.css"
+  user_content="$chrome_dir/userContent.css"
+  user_prefs="$profile/user.js"
+
+  validate_blank_page_file "$css_target"
+  validate_managed_block "$user_content" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END"
+  validate_managed_block "$user_prefs" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"
+  write_blank_page_file "$css_target"
+  install_blank_page_user_content "$user_content"
+  install_blank_page_prefs "$user_prefs"
+  printf 'Configured Firefox profile: %s\n' "$profile"
+}
+
+validate_firefox_profile() {
+  local profile=$1 chrome_dir
+
+  chrome_dir="$profile/chrome"
+  [[ ! -e $chrome_dir || -d $chrome_dir ]] || \
+    fail "Firefox chrome path is not a directory: $chrome_dir"
+  validate_blank_page_file "$chrome_dir/omafox-blank-page.css"
+  validate_managed_block "$chrome_dir/userContent.css" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END"
+  validate_managed_block "$profile/user.js" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"
+}
+
+setup_firefox_profiles() {
+  local profile
+  local -a profiles=() existing_profiles=()
+
+  FIREFOX_CONFIGURED_COUNT=0
+  [[ -f $FIREFOX_PROFILES_FILE ]] || return 0
+  mapfile -t profiles < <(list_unique_firefox_profiles)
+  for profile in "${profiles[@]}"; do
+    if [[ ! -d $profile ]]; then
+      printf 'Skipped missing Firefox profile: %s\n' "$profile" >&2
+      continue
+    fi
+    existing_profiles+=("$profile")
+  done
+
+  (( ${#existing_profiles[@]} > 0 )) || return 0
+  read_palette
+  for profile in "${existing_profiles[@]}"; do
+    validate_firefox_profile "$profile"
+  done
+  for profile in "${existing_profiles[@]}"; do
+    configure_firefox_profile "$profile"
+    ((FIREFOX_CONFIGURED_COUNT += 1))
+  done
+}
+
+firefox_profile_status() {
+  local profile=$1 css_target user_content user_prefs
+
+  css_target="$profile/chrome/omafox-blank-page.css"
+  user_content="$profile/chrome/userContent.css"
+  user_prefs="$profile/user.js"
+
+  if [[ -e $css_target || -L $css_target ]] && ! blank_page_owned "$css_target"; then
+    printf 'conflict'
+  elif blank_page_owned "$css_target" \
+      && managed_block_present "$user_content" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END" \
+      && managed_block_present "$user_prefs" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"; then
+    printf 'configured'
+  elif [[ -e $css_target ]] \
+      || managed_marker_present "$user_content" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END" \
+      || managed_marker_present "$user_prefs" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"; then
+    printf 'incomplete'
+  else
+    printf 'not configured'
+  fi
+}
+
+show_firefox_status() {
+  local profile found=0
+  local -a profiles=()
+
+  if [[ ! -f $FIREFOX_PROFILES_FILE ]]; then
+    printf 'Firefox profiles: not detected (%s)\n' "$FIREFOX_PROFILES_FILE"
+    return 0
+  fi
+
+  mapfile -t profiles < <(list_unique_firefox_profiles)
+  for profile in "${profiles[@]}"; do
+    found=1
+    if [[ -d $profile ]]; then
+      printf 'Firefox profile: %s (%s)\n' "$profile" "$(firefox_profile_status "$profile")"
+    else
+      printf 'Firefox profile: %s (missing)\n' "$profile"
+    fi
+  done
+  (( found == 1 )) || printf 'Firefox profiles: none listed in %s\n' "$FIREFOX_PROFILES_FILE"
+}
+
+remove_firefox_profile() {
+  local profile=$1 css_target configured=0
+
+  css_target="$profile/chrome/omafox-blank-page.css"
+  validate_blank_page_file "$css_target"
+  if [[ -e $css_target ]] \
+      || managed_marker_present "$profile/chrome/userContent.css" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END" \
+      || managed_marker_present "$profile/user.js" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"; then
+    configured=1
+  fi
+
+  remove_managed_profile_block \
+    "$profile/chrome/userContent.css" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END"
+  remove_managed_profile_block \
+    "$profile/user.js" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"
+  if [[ -f $css_target ]]; then
+    rm -f "$css_target"
+  fi
+  if (( configured == 1 )); then
+    printf 'Removed Firefox profile bridge: %s\n' "$profile"
+  fi
+}
+
+remove_firefox_profiles() {
+  local profile
+  local -a profiles=()
+
+  [[ -f $FIREFOX_PROFILES_FILE ]] || return 0
+  mapfile -t profiles < <(list_unique_firefox_profiles)
+  for profile in "${profiles[@]}"; do
+    [[ -d $profile ]] || continue
+    validate_firefox_profile "$profile"
+  done
+  for profile in "${profiles[@]}"; do
+    [[ -d $profile ]] || continue
+    remove_firefox_profile "$profile"
   done
 }
 
@@ -708,6 +961,7 @@ show_status() {
   printf 'Native host: %s (%s)\n' "$NATIVE_HOST_PATH" "$([[ -x $NATIVE_HOST_PATH ]] && echo installed || echo missing)"
   printf 'Native manifest: %s (%s)\n' "$NATIVE_MANIFEST_PATH" "$([[ -f $NATIVE_MANIFEST_PATH ]] && echo installed || echo missing)"
   show_zen_status
+  show_firefox_status
 }
 
 setup_omafox() {
@@ -720,15 +974,20 @@ setup_omafox() {
   printf 'Enabled user hook: %s\n' "$HOOK_PATH"
   printf 'Using packaged native host: %s\n' "$NATIVE_HOST_PATH"
   setup_zen_profiles
+  setup_firefox_profiles
   sync_theme
   echo "Queued the current Omarchy palette for connected browsers."
   if (( ZEN_CONFIGURED_COUNT > 0 )); then
     echo "Restart Zen Browser once to load the Omafox bridge."
   fi
+  if (( FIREFOX_CONFIGURED_COUNT > 0 )); then
+    echo "Restart Firefox once to load the Omafox blank page theme."
+  fi
 }
 
 remove_omafox() {
   remove_zen_profiles
+  remove_firefox_profiles
 
   if [[ -e $HOOK_PATH || -L $HOOK_PATH ]]; then
     rm -f "$HOOK_PATH"
