@@ -100,8 +100,10 @@ setup_output=$("$PROJECT_DIR/omarchy/omafox" setup 2>&1)
 for profile in "$RELATIVE_PROFILE" "$ABSOLUTE_PROFILE"; do
   css="$profile/chrome/omafox-blank-page.css"
   [[ $(sed -n '1p' "$css") == "$BLANK_MARKER" ]]
+  grep -Fq '@-moz-document url("about:newtab")' "$css"
+  grep -Fq '@media not -moz-pref("browser.newtabpage.enabled")' "$css"
   grep -Fq '@-moz-document url("chrome://browser/content/blanktab.html")' "$css"
-  grep -Fq 'background-color: #111c18 !important;' "$css"
+  [[ $(grep -Fc 'background-color: #111c18 !important;' "$css") == 2 ]]
   grep -Fq 'color-scheme: dark !important;' "$css"
   [[ $(stat -c '%a' "$css") == 600 ]]
   [[ $(grep -Fxc "$CHROME_BEGIN" "$profile/chrome/userChrome.css") == 1 ]]

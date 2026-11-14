@@ -604,6 +604,14 @@ setup_zen_profiles() {
 
 blank_page_css() {
   printf '%s\n' "$BLANK_PAGE_MARKER"
+  printf '%s\n' '@-moz-document url("about:newtab") {'
+  printf '%s\n' '  @media not -moz-pref("browser.newtabpage.enabled") {'
+  printf '    :root {\n'
+  printf '      background-color: %s !important;\n' "${OMAFOX_PALETTE[background]}"
+  printf '      color-scheme: %s !important;\n' "${OMAFOX_PALETTE[mode]}"
+  printf '    }\n'
+  printf '%s\n' '  }'
+  printf '%s\n' '}'
   printf '%s\n' '@-moz-document url("chrome://browser/content/blanktab.html") {'
   printf '  :root {\n'
   printf '    background-color: %s !important;\n' "${OMAFOX_PALETTE[background]}"
