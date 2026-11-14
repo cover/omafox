@@ -32,6 +32,8 @@ readonly BLANK_PAGE_CSS_BEGIN='/* BEGIN OMAFOX FIREFOX BLANK PAGE */'
 readonly BLANK_PAGE_CSS_END='/* END OMAFOX FIREFOX BLANK PAGE */'
 readonly BLANK_PAGE_PREFS_BEGIN='// BEGIN OMAFOX FIREFOX BLANK PAGE'
 readonly BLANK_PAGE_PREFS_END='// END OMAFOX FIREFOX BLANK PAGE'
+readonly FIREFOX_CHROME_BEGIN='/* BEGIN OMAFOX FIREFOX CHROME */'
+readonly FIREFOX_CHROME_END='/* END OMAFOX FIREFOX CHROME */'
 ZEN_CONFIGURED_COUNT=0
 FIREFOX_CONFIGURED_COUNT=0
 readonly -a PALETTE_KEYS=(
@@ -641,6 +643,7 @@ blank_page_configured() {
   local profile=$1
 
   blank_page_owned "$profile/chrome/omafox-blank-page.css" \
+    && managed_block_present "$profile/chrome/userChrome.css" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END" \
     && managed_block_present "$profile/chrome/userContent.css" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END" \
     && managed_block_present "$profile/user.js" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"
 }
@@ -691,8 +694,28 @@ install_blank_page_prefs() {
   atomic_replace_profile_file "$target" "$temporary_file"
 }
 
+install_firefox_user_chrome() {
+  local target=$1 temporary_file
+
+  validate_managed_block "$target" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END"
+  temporary_file=$(mktemp "$(dirname "$target")/.userChrome.css.XXXXXX")
+
+  {
+    printf '%s\n' "$FIREFOX_CHROME_BEGIN"
+    printf '%s\n' '#tabbrowser-tabpanels > :not(.split-view-panel) .browserContainer {'
+    printf '%s\n' '  border-block-start-style: var(--tabs-navbar-separator-style, solid) !important;'
+    printf '%s\n' '  border-block-start-width: 0.01px !important;'
+    printf '%s\n' '  border-block-start-color: var(--tabs-navbar-separator-color) !important;'
+    printf '%s\n' '}'
+    printf '%s\n' "$FIREFOX_CHROME_END"
+    emit_without_managed_block "$target" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END"
+  } > "$temporary_file"
+
+  atomic_replace_profile_file "$target" "$temporary_file"
+}
+
 configure_firefox_profile() {
-  local profile=$1 chrome_dir css_target user_content user_prefs
+  local profile=$1 chrome_dir css_target user_chrome user_content user_prefs
 
   chrome_dir="$profile/chrome"
 
@@ -702,13 +725,16 @@ configure_firefox_profile() {
     install -d -m 700 "$chrome_dir"
   fi
   css_target="$chrome_dir/omafox-blank-page.css"
+  user_chrome="$chrome_dir/userChrome.css"
   user_content="$chrome_dir/userContent.css"
   user_prefs="$profile/user.js"
 
   validate_blank_page_file "$css_target"
+  validate_managed_block "$user_chrome" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END"
   validate_managed_block "$user_content" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END"
   validate_managed_block "$user_prefs" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"
   write_blank_page_file "$css_target"
+  install_firefox_user_chrome "$user_chrome"
   install_blank_page_user_content "$user_content"
   install_blank_page_prefs "$user_prefs"
   printf 'Configured Firefox profile: %s\n' "$profile"
@@ -721,6 +747,7 @@ validate_firefox_profile() {
   [[ ! -e $chrome_dir || -d $chrome_dir ]] || \
     fail "Firefox chrome path is not a directory: $chrome_dir"
   validate_blank_page_file "$chrome_dir/omafox-blank-page.css"
+  validate_managed_block "$chrome_dir/userChrome.css" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END"
   validate_managed_block "$chrome_dir/userContent.css" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END"
   validate_managed_block "$profile/user.js" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"
 }
@@ -752,19 +779,22 @@ setup_firefox_profiles() {
 }
 
 firefox_profile_status() {
-  local profile=$1 css_target user_content user_prefs
+  local profile=$1 css_target user_chrome user_content user_prefs
 
   css_target="$profile/chrome/omafox-blank-page.css"
+  user_chrome="$profile/chrome/userChrome.css"
   user_content="$profile/chrome/userContent.css"
   user_prefs="$profile/user.js"
 
   if [[ -e $css_target || -L $css_target ]] && ! blank_page_owned "$css_target"; then
     printf 'conflict'
   elif blank_page_owned "$css_target" \
+      && managed_block_present "$user_chrome" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END" \
       && managed_block_present "$user_content" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END" \
       && managed_block_present "$user_prefs" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"; then
     printf 'configured'
   elif [[ -e $css_target ]] \
+      || managed_marker_present "$user_chrome" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END" \
       || managed_marker_present "$user_content" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END" \
       || managed_marker_present "$user_prefs" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"; then
     printf 'incomplete'
@@ -800,11 +830,14 @@ remove_firefox_profile() {
   css_target="$profile/chrome/omafox-blank-page.css"
   validate_blank_page_file "$css_target"
   if [[ -e $css_target ]] \
+      || managed_marker_present "$profile/chrome/userChrome.css" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END" \
       || managed_marker_present "$profile/chrome/userContent.css" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END" \
       || managed_marker_present "$profile/user.js" "$BLANK_PAGE_PREFS_BEGIN" "$BLANK_PAGE_PREFS_END"; then
     configured=1
   fi
 
+  remove_managed_profile_block \
+    "$profile/chrome/userChrome.css" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END"
   remove_managed_profile_block \
     "$profile/chrome/userContent.css" "$BLANK_PAGE_CSS_BEGIN" "$BLANK_PAGE_CSS_END"
   remove_managed_profile_block \

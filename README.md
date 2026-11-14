@@ -10,6 +10,8 @@ Omafox keeps Firefox and Zen Browser in sync with your current
 - Themes tabs, toolbars, menus, sidebars, and the new tab page from the full
   Omarchy palette.
 - Paints Firefox's blank new tab page with the current Omarchy background.
+- Matches the separator under Firefox's address bar to the one above it, using
+  Firefox's own tab/address separator colors instead of the palette brown.
 - Maps the extension theme into Zen's workspace and toolbar interface through
   a small, managed profile stylesheet.
 - Supports both dark and light themes, including custom themes with partial
@@ -67,9 +69,10 @@ each desktop user who wants to use Omafox, and rerun it after creating a new
 Zen profile.
 
 If Firefox profiles exist, setup also installs a blank page stylesheet into
-each of them so the empty new tab page uses the current Omarchy background.
-That stylesheet is regenerated on every theme change, but Firefox only reads
-it at startup, so restart Firefox to pick up a new theme's color.
+each of them so the empty new tab page uses the current Omarchy background,
+plus a userChrome rule that matches the separator under the address bar to the
+one above it. The stylesheet is regenerated on every theme change, but Firefox
+only reads it at startup, so restart Firefox to pick up a new theme's color.
 
 If the theme does not update after setup, completely close and restart the
 browser. If it still does not update, restart your system.
@@ -123,6 +126,9 @@ Omafox is made up of a few small parts:
   `user.js` block. The theme hook regenerates the stylesheet whenever the
   Omarchy theme changes; restart Firefox to apply the new color. Setup
   refuses to overwrite an unrelated `chrome/omafox-blank-page.css` file.
+  A managed `userChrome.css` block reuses Firefox's `--tabs-navbar-separator-*`
+  values for the content separator, so the line under the address bar matches
+  the one between the tab strip and the address bar.
 
 The flow is:
 

@@ -20,6 +20,8 @@ CSS_BEGIN='/* BEGIN OMAFOX FIREFOX BLANK PAGE */'
 CSS_END='/* END OMAFOX FIREFOX BLANK PAGE */'
 PREFS_BEGIN='// BEGIN OMAFOX FIREFOX BLANK PAGE'
 PREFS_END='// END OMAFOX FIREFOX BLANK PAGE'
+CHROME_BEGIN='/* BEGIN OMAFOX FIREFOX CHROME */'
+CHROME_END='/* END OMAFOX FIREFOX CHROME */'
 
 cleanup() {
   rm -rf "$TEST_ROOT"
@@ -70,6 +72,10 @@ printf '%s\n' 'user_pref("example.existing", true);' > "$RELATIVE_PROFILE/user.j
 chmod 640 "$RELATIVE_PROFILE/user.js"
 cp "$RELATIVE_PROFILE/user.js" "$TEST_ROOT/original-user.js"
 
+printf '%s\n' '#TabsToolbar { color: red; }' > "$RELATIVE_PROFILE/chrome/userChrome.css"
+chmod 640 "$RELATIVE_PROFILE/chrome/userChrome.css"
+cp "$RELATIVE_PROFILE/chrome/userChrome.css" "$TEST_ROOT/original-userChrome.css"
+
 export HOME="$TEST_HOME"
 export PATH="$MOCK_BIN:$PATH"
 export OMAFOX_THEME_DIR="$THEME_DIR"
@@ -98,6 +104,11 @@ for profile in "$RELATIVE_PROFILE" "$ABSOLUTE_PROFILE"; do
   grep -Fq 'background-color: #111c18 !important;' "$css"
   grep -Fq 'color-scheme: dark !important;' "$css"
   [[ $(stat -c '%a' "$css") == 600 ]]
+  [[ $(grep -Fxc "$CHROME_BEGIN" "$profile/chrome/userChrome.css") == 1 ]]
+  [[ $(grep -Fxc "$CHROME_END" "$profile/chrome/userChrome.css") == 1 ]]
+  [[ $(grep -Fxc '  border-block-start-width: 0.01px !important;' "$profile/chrome/userChrome.css") == 1 ]]
+  grep -Fqx '  border-block-start-color: var(--tabs-navbar-separator-color) !important;' \
+    "$profile/chrome/userChrome.css"
   [[ $(grep -Fxc "$CSS_BEGIN" "$profile/chrome/userContent.css") == 1 ]]
   [[ $(grep -Fxc "$CSS_END" "$profile/chrome/userContent.css") == 1 ]]
   [[ $(grep -Fxc '@import url("omafox-blank-page.css");' "$profile/chrome/userContent.css") == 1 ]]
@@ -107,9 +118,12 @@ for profile in "$RELATIVE_PROFILE" "$ABSOLUTE_PROFILE"; do
 done
 
 [[ $(stat -c '%a' "$RELATIVE_PROFILE/user.js") == 640 ]]
+[[ $(stat -c '%a' "$RELATIVE_PROFILE/chrome/userChrome.css") == 640 ]]
 [[ $(stat -c '%a' "$ABSOLUTE_PROFILE/chrome") == 700 ]]
 [[ $(stat -c '%a' "$ABSOLUTE_PROFILE/user.js") == 600 ]]
+[[ $(stat -c '%a' "$ABSOLUTE_PROFILE/chrome/userChrome.css") == 600 ]]
 grep -Fqx 'user_pref("example.existing", true);' "$RELATIVE_PROFILE/user.js"
+grep -Fqx '#TabsToolbar { color: red; }' "$RELATIVE_PROFILE/chrome/userChrome.css"
 
 configured_status=$("$PROJECT_DIR/omarchy/omafox" status)
 [[ $configured_status == *"Firefox profile: $RELATIVE_PROFILE (configured)"* ]]
@@ -123,6 +137,7 @@ grep -Fq 'background-color: #222233 !important;' "$ABSOLUTE_PROFILE/chrome/omafo
 
 # Setup is idempotent.
 "$PROJECT_DIR/omarchy/omafox" setup >/dev/null 2>&1
+[[ $(grep -Fxc "$CHROME_BEGIN" "$RELATIVE_PROFILE/chrome/userChrome.css") == 1 ]]
 [[ $(grep -Fxc "$CSS_BEGIN" "$RELATIVE_PROFILE/chrome/userContent.css") == 1 ]]
 [[ $(grep -Fxc "$PREFS_BEGIN" "$RELATIVE_PROFILE/user.js") == 1 ]]
 
@@ -145,7 +160,12 @@ for profile in "$RELATIVE_PROFILE" "$ABSOLUTE_PROFILE"; do
   if [[ -f $profile/user.js ]]; then
     assert_not_contains "$PREFS_BEGIN" "$profile/user.js"
   fi
+  if [[ -f $profile/chrome/userChrome.css ]]; then
+    assert_not_contains "$CHROME_BEGIN" "$profile/chrome/userChrome.css"
+  fi
 done
 cmp "$TEST_ROOT/original-user.js" "$RELATIVE_PROFILE/user.js"
+cmp "$TEST_ROOT/original-userChrome.css" "$RELATIVE_PROFILE/chrome/userChrome.css"
+[[ ! -e $ABSOLUTE_PROFILE/chrome/userChrome.css ]]
 
 echo "firefox-integration.test.sh: ok"
