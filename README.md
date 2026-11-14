@@ -9,6 +9,10 @@ Omafox keeps Firefox and Zen Browser in sync with your current
   theme.
 - Themes tabs, toolbars, menus, sidebars, and the new tab page from the full
   Omarchy palette.
+- Paints Firefox's blank new tab page (`about:newtab` and `blanktab.html`) with
+  the current Omarchy background.
+- Matches the separator under Firefox's address bar to the one above it, using
+  Firefox's own tab/address separator colors instead of the palette brown.
 - Maps the extension theme into Zen's workspace and toolbar interface through
   a small, managed profile stylesheet.
 - Supports both dark and light themes, including custom themes with partial
@@ -65,6 +69,12 @@ Zen preferences it needs. Restart Zen once after setup. Run setup once for
 each desktop user who wants to use Omafox, and rerun it after creating a new
 Zen profile.
 
+If Firefox profiles exist, setup also installs a blank page stylesheet into
+each of them so the empty new tab page uses the current Omarchy background,
+plus a userChrome rule that matches the separator under the address bar to the
+one above it. The stylesheet is regenerated on every theme change, but Firefox
+only reads it at startup, so restart Firefox to pick up a new theme's color.
+
 If the theme does not update after setup, completely close and restart the
 browser. If it still does not update, restart your system.
 
@@ -111,6 +121,19 @@ Omafox is made up of a few small parts:
   adds the required preferences to a managed block in `user.js`. Existing
   profile customizations outside those marked blocks are preserved. Setup
   refuses to overwrite an unrelated `chrome/omafox.css` file.
+- For Firefox profiles, `omafox setup` installs `chrome/omafox-blank-page.css`
+  with the current background color, adds a managed import to
+  `chrome/userContent.css`, and enables user stylesheets in a managed
+  `user.js` block. The stylesheet covers both `about:newtab` (only while the
+  built-in new tab page is disabled) and `blanktab.html`. The theme hook
+  regenerates it whenever the Omarchy theme changes; restart Firefox to apply
+  the new color. Setup refuses to overwrite an unrelated
+  `chrome/omafox-blank-page.css` file.
+  A managed `userChrome.css` block colors the tab-panel backdrop with the
+  theme background, so opening a new tab no longer flashes Firefox's default
+  box color, and reuses Firefox's `--tabs-navbar-separator-*` values for the
+  content separator so the line under the address bar matches the one between
+  the tab strip and the address bar.
 
 The flow is:
 
@@ -134,12 +157,12 @@ If a browser does not update after a theme change:
 
 1. Confirm that both the Omafox extension and native package are installed.
 2. Run `omafox status` and check that the theme state, native host, and native
-   manifest are present. For Zen, also check that each profile says
+   manifest are present. For Zen and Firefox, also check that each profile says
    `configured`. A `conflict` status means the profile already contains an
-   unrelated `chrome/omafox.css`; rename or remove that file before setup.
+   unrelated Omafox stylesheet; rename or remove that file before setup.
 3. Run `omafox setup`, followed by `omafox sync`.
-4. Completely close and restart the browser. Zen also requires a restart if
-   its bridge was newly installed or updated.
+4. Completely close and restart the browser. Zen and Firefox also require a
+   restart if their bridges were newly installed or updated.
 5. Open the Omafox popup to check its connection status or reapply the theme.
 6. If the theme still does not update, restart your system.
 
@@ -164,11 +187,13 @@ sudo pacman -Rns omafox
 ```
 
 Then remove the Omafox extension from Firefox's `about:addons` page. Omafox
-can be removed from Zen on the same page. Restart Zen after removal. The
-command deletes the Omafox stylesheet and its managed `userChrome.css` and
-`user.js` blocks without removing other profile customizations.
+can be removed from Zen on the same page. Restart the browsers after removal.
+The command deletes the Omafox stylesheets and the managed `userChrome.css`,
+`userContent.css`, and `user.js` blocks without removing other profile
+customizations.
 
-Zen copies `user.js` values into `prefs.js` when it starts, so the preferences
+Firefox and Zen copy `user.js` values into `prefs.js` when they start, so the
+preferences
 `toolkit.legacyUserProfileCustomizations.stylesheets` and
 `zen.theme.disable-lightweight` may remain as user-set values after removal.
 Use Reset for those entries in `about:config` if you want to return them to

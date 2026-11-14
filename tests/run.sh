@@ -12,6 +12,7 @@ bash -n \
   "$SCRIPT_DIR/command.test.sh" \
   "$SCRIPT_DIR/package.test.sh" \
   "$SCRIPT_DIR/zen-integration.test.sh" \
+  "$SCRIPT_DIR/firefox-integration.test.sh" \
   "$SCRIPT_DIR/fixtures/bin/omarchy"
 
 shellcheck \
@@ -22,6 +23,7 @@ shellcheck \
   "$SCRIPT_DIR/command.test.sh" \
   "$SCRIPT_DIR/package.test.sh" \
   "$SCRIPT_DIR/zen-integration.test.sh" \
+  "$SCRIPT_DIR/firefox-integration.test.sh" \
   "$SCRIPT_DIR/fixtures/bin/omarchy"
 
 node --check "$PROJECT_DIR/extension/theme.js"
@@ -36,6 +38,7 @@ node "$SCRIPT_DIR/background.test.js"
 node "$SCRIPT_DIR/native-host.test.js"
 "$SCRIPT_DIR/command.test.sh"
 "$SCRIPT_DIR/zen-integration.test.sh"
+"$SCRIPT_DIR/firefox-integration.test.sh"
 "$SCRIPT_DIR/package.test.sh"
 
 echo "All Omafox tests passed."
