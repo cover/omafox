@@ -40,7 +40,7 @@ make -C "$PROJECT_DIR" \
 [[ -f $SYSTEM_ZEN_BRIDGE ]]
 [[ -f "$PACKAGE_ROOT/usr/share/doc/omafox/README.md" ]]
 [[ -f "$PACKAGE_ROOT/usr/share/licenses/omafox/LICENSE" ]]
-[[ $($SYSTEM_COMMAND version) == 1.1.0 ]]
+[[ $($SYSTEM_COMMAND version) == 1.2.0 ]]
 
 python3 - "$SYSTEM_MANIFEST" <<'PY'
 import json
