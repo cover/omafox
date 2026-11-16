@@ -91,6 +91,17 @@ initial_status=$("$PROJECT_DIR/omarchy/omafox" status)
 [[ $initial_status == *"Firefox profile: $ABSOLUTE_PROFILE (not configured)"* ]]
 [[ $initial_status == *"Firefox profile: $MISSING_PROFILE (missing)"* ]]
 
+# Upgrade a profile with the old managed separator override.
+cat >> "$RELATIVE_PROFILE/chrome/userChrome.css" <<EOF
+$CHROME_BEGIN
+#tabbrowser-tabpanels > :not(.split-view-panel) .browserContainer {
+  border-block-start-style: var(--tabs-navbar-separator-style, solid) !important;
+  border-block-start-width: 0.01px !important;
+  border-block-start-color: var(--tabs-navbar-separator-color) !important;
+}
+$CHROME_END
+EOF
+
 setup_output=$("$PROJECT_DIR/omarchy/omafox" setup 2>&1)
 [[ $(grep -Fc "Configured Firefox profile: $RELATIVE_PROFILE" <<< "$setup_output") == 1 ]]
 [[ $(grep -Fc "Configured Firefox profile: $ABSOLUTE_PROFILE" <<< "$setup_output") == 1 ]]
@@ -111,9 +122,8 @@ for profile in "$RELATIVE_PROFILE" "$ABSOLUTE_PROFILE"; do
   [[ $(grep -Fxc '@media not -moz-pref("browser.newtabpage.enabled") {' "$profile/chrome/userChrome.css") == 1 ]]
   [[ $(grep -Fxc '  :root:not([privatebrowsingmode="temporary"]) {' "$profile/chrome/userChrome.css") == 1 ]]
   [[ $(grep -Fxc '    --tabpanel-background-color: var(--lwt-accent-color) !important;' "$profile/chrome/userChrome.css") == 1 ]]
-  [[ $(grep -Fxc '  border-block-start-width: 0.01px !important;' "$profile/chrome/userChrome.css") == 1 ]]
-  grep -Fqx '  border-block-start-color: var(--tabs-navbar-separator-color) !important;' \
-    "$profile/chrome/userChrome.css"
+  assert_not_contains '.browserContainer' "$profile/chrome/userChrome.css"
+  assert_not_contains 'border-' "$profile/chrome/userChrome.css"
   [[ $(grep -Fxc "$CSS_BEGIN" "$profile/chrome/userContent.css") == 1 ]]
   [[ $(grep -Fxc "$CSS_END" "$profile/chrome/userContent.css") == 1 ]]
   [[ $(grep -Fxc '@import url("omafox-blank-page.css");' "$profile/chrome/userContent.css") == 1 ]]

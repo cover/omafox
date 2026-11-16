@@ -294,7 +294,7 @@
         ntp_card_background: color.lighter_background,
         ntp_text: tabBackgroundText,
         toolbar_top_separator: color.muted,
-        toolbar_bottom_separator: color.brown,
+        toolbar_bottom_separator: color.muted,
         toolbar_vertical_separator: color.muted
       },
       properties: {

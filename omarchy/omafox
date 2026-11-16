@@ -715,11 +715,6 @@ install_firefox_user_chrome() {
     printf '%s\n' '    --tabpanel-background-color: var(--lwt-accent-color) !important;'
     printf '%s\n' '  }'
     printf '%s\n' '}'
-    printf '%s\n' '#tabbrowser-tabpanels > :not(.split-view-panel) .browserContainer {'
-    printf '%s\n' '  border-block-start-style: var(--tabs-navbar-separator-style, solid) !important;'
-    printf '%s\n' '  border-block-start-width: 0.01px !important;'
-    printf '%s\n' '  border-block-start-color: var(--tabs-navbar-separator-color) !important;'
-    printf '%s\n' '}'
     printf '%s\n' "$FIREFOX_CHROME_END"
     emit_without_managed_block "$target" "$FIREFOX_CHROME_BEGIN" "$FIREFOX_CHROME_END"
   } > "$temporary_file"

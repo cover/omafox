@@ -78,7 +78,9 @@ assert.equal(firefoxTheme.colors.toolbar_field_highlight_text, palette.bright_fo
 assert.equal(firefoxTheme.colors.button_background_active, palette.selection);
 assert.equal(firefoxTheme.colors.popup_highlight, palette.selection);
 assert.equal(firefoxTheme.colors.sidebar_highlight, palette.selection);
-assert.equal(firefoxTheme.colors.toolbar_bottom_separator, palette.brown);
+assert.equal(firefoxTheme.colors.toolbar_bottom_separator, palette.muted);
+assert.equal(firefoxTheme.colors.toolbar_bottom_separator, firefoxTheme.colors.toolbar_top_separator);
+assert.equal(firefoxTheme.colors.toolbar_bottom_separator, firefoxTheme.colors.sidebar_border);
 assert.equal(firefoxTheme.properties.color_scheme, "dark");
 
 const lowContrastHighlightTheme = toFirefoxTheme({
