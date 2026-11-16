@@ -3,7 +3,7 @@
 set -euo pipefail
 
 readonly PROGRAM_NAME="omafox"
-readonly VERSION="1.2.0"
+readonly VERSION="1.2.1"
 readonly PROTOCOL="omafox"
 readonly PROTOCOL_VERSION=1
 readonly ACTION="theme-set"
